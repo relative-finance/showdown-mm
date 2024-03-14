@@ -29,7 +29,9 @@ func RegisterTicket(router *gin.Engine, ctx context.Context) {
 		}
 		defer conn.Close()
 		for {
-			conn.WriteMessage(websocket.TextMessage, []byte("Hello, WebSocket!"))
+
+			msg := wires.Instance.TicketService.EvaluateTickets(c)
+			conn.WriteMessage(websocket.TextMessage, []byte("All Tickets: "+msg.(string)))
 			time.Sleep(time.Second)
 		}
 	})
