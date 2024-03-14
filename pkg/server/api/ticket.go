@@ -12,7 +12,7 @@ import (
 func RegisterTicket(router *gin.Engine, ctx context.Context) {
 	tickets := router.Group("/tickets")
 	{
-		tickets.POST("/", submitTicket)
+		tickets.POST("/submit", submitTicket)
 	}
 }
 
@@ -25,10 +25,9 @@ func submitTicket(c *gin.Context) {
 		c.JSON(500, gin.H{
 			"error": err.Error(),
 		})
-		return
+	} else {
+		c.JSON(200, gin.H{
+			"message": "Ticket submitted",
+		})
 	}
-
-	c.JSON(200, gin.H{
-		"message": "Ticket submitted",
-	})
 }
