@@ -23,7 +23,12 @@ func (s *TicketServiceImpl) SubmitTicket(g *gin.Context, submitTicketRequest Sub
 	return nil
 }
 
-func (s *TicketServiceImpl) EvaluateTickets(g *gin.Context) any {
+func (s *TicketServiceImpl) GetAllTickets(g *gin.Context) []string {
+	gameTickets := s.Redis.ZRange("player_elo", 0, -1)
+	return gameTickets.Val()
+}
+
+func (s *TicketServiceImpl) EvaluateTickets(g *gin.Context) []string {
 	gameTickets := s.Redis.ZRange("player_elo", 0, -1)
 	return gameTickets.Val()
 }

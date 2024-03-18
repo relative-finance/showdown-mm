@@ -13,3 +13,14 @@ $ cd ..
 # Start the backend server
 $ go run /cmd/main.go
 ```
+
+
+## How to test websockets
+
+```bash
+# Install wscat
+$ npm install -g wscat
+
+# Connect to the websocket server
+$ wscat -c ws://localhost:8080/ws
+```

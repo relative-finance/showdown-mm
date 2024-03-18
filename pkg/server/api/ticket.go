@@ -20,6 +20,7 @@ func RegisterTicket(router *gin.Engine, ctx context.Context) {
 	tickets := router.Group("/tickets")
 	{
 		tickets.POST("/submit", submitTicket)
+		tickets.GET("/fetch", fetchTickets)
 	}
 
 	router.GET("/ws", func(c *gin.Context) {
@@ -28,11 +29,11 @@ func RegisterTicket(router *gin.Engine, ctx context.Context) {
 			return
 		}
 		defer conn.Close()
-		for {
 
+		for {
 			msg := wires.Instance.TicketService.EvaluateTickets(c)
-			conn.WriteMessage(websocket.TextMessage, []byte("All Tickets: "+msg.(string)))
-			time.Sleep(time.Second)
+			conn.WriteMessage(websocket.TextMessage, []byte(msg[0]))
+			time.Sleep(1 * time.Second)
 		}
 	})
 
@@ -52,4 +53,11 @@ func submitTicket(c *gin.Context) {
 			"message": "Ticket submitted",
 		})
 	}
+}
+
+func fetchTickets(c *gin.Context) {
+	tickets := wires.Instance.TicketService.GetAllTickets(c)
+	c.JSON(200, gin.H{
+		"tickets": tickets,
+	})
 }
