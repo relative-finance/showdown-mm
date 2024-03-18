@@ -27,6 +27,7 @@ func (server *Server) Start() {
 
 	r := gin.Default()
 	r.Use(gin.Logger())
+	r.Use(CORSMiddleware())
 
 	wires.Init()
 	redis.Init(server.config, context.Background())
@@ -44,4 +45,15 @@ func (server *Server) Start() {
 	}
 
 	println("Starting server on port: " + server.config.Server.Port)
+}
+
+func CORSMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length")
+		c.Writer.Header().Set("Access-Allow-Methods", "POST, GET")
+
+		c.Next()
+	}
 }
