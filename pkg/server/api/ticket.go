@@ -32,8 +32,14 @@ func RegisterTicket(router *gin.Engine, ctx context.Context) {
 
 		for {
 			msg := wires.Instance.TicketService.EvaluateTickets(c)
-			conn.WriteMessage(websocket.TextMessage, []byte(msg[0]))
+			if len(msg) == 10 {
+				conn.WriteJSON(msg)
+				// TODO: Add scheduled task to check if all players are ready and begin the game
+			} else {
+				conn.WriteMessage(websocket.TextMessage, []byte("Waiting for more players to join the game."))
+			}
 			time.Sleep(1 * time.Second)
+
 		}
 	})
 
