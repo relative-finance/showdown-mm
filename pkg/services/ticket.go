@@ -68,10 +68,11 @@ func CalculateMatchQuality(tickets []Ticket) float64 {
 	for i := 0; i < len(players); i++ {
 		sigma_sum += players[i].GetSigma()
 	}
+	avg_sigma := sigma_sum / float64(len(players))
 
-	beta := sigma_sum / float64(len(tickets)) / 2  // beta is skill difference to expect higher skill player/team to win 80% of the time
-	tau := sigma_sum / float64(len(tickets)) / 100 // tau is normal for 2% of beta
-	pDraw := 0.0                                   // there shouldn't be any draws in a cs match - to be changed in the future
+	beta := avg_sigma * 3 / 2 // beta is skill difference to expect higher skill player/team to win 76% of the time
+	tau := beta / 100         // tau is normal for 2% of beta
+	pDraw := 0.1              // there shouldn't be any draws in a cs match - to be changed in the future
 
 	game := trueskill.NewGame(beta, tau, pDraw)
 	teams := make([]trueskill.Team, 0) // this is a 2 team game - to be configurable in the future
