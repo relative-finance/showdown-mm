@@ -67,7 +67,5 @@ func submitTicket(c *gin.Context) {
 
 func fetchTickets(c *gin.Context) {
 	tickets := wires.Instance.TicketService.GetAllTickets(c)
-	c.JSON(200, gin.H{
-		"tickets": tickets,
-	})
+	c.JSON(200, tickets)
 }
