@@ -30,6 +30,15 @@ func (s *TicketServiceImpl) SubmitTicket(g *gin.Context, submitTicketRequest Sub
 }
 
 func (s *TicketServiceImpl) GetAllTickets(g *gin.Context) []Ticket {
+	tickets := s.Redis.ZRangeWithScores("player_elo", 0, -1) // Includes second limit
+	var gameTickets []Ticket
+	for _, ticket := range tickets.Val() {
+		gameTickets = append(gameTickets, Ticket{Member: ticket.Member.(string), Score: ticket.Score})
+	}
+	return gameTickets
+}
+
+func (s *TicketServiceImpl) EvaluateTickets(g *gin.Context) []float64 {
 	var gameTickets []Ticket
 	tickets := s.Redis.ZRangeWithScores("player_elo", 0, -1)
 
@@ -37,14 +46,13 @@ func (s *TicketServiceImpl) GetAllTickets(g *gin.Context) []Ticket {
 		gameTickets = append(gameTickets, Ticket{Member: ticket.Member.(string), Score: ticket.Score})
 	}
 
-	log.Println("Calculation with TrueSkill:", CalculateMatchQuality(gameTickets[0:4]))          // doens't include second limit
-	log.Println("Calculation with only Glicko:", CalcMatchQualityNonTrueSkill(gameTickets[0:4])) // doens't include second limit
-	return gameTickets
-}
+	trueSkill := CalculateMatchQuality(gameTickets[0:4])
+	glicko := CalcMatchQualityNonTrueSkill(gameTickets[0:4])
 
-func (s *TicketServiceImpl) EvaluateTickets(g *gin.Context) []string {
-	gameTickets := s.Redis.ZRange("player_elo", 0, -1) // Includes second limit
-	return gameTickets.Val()
+	log.Println("Calculation with TrueSkill:", trueSkill) // doens't include second limit
+	log.Println("Calculation with only Glicko:", glicko)  // doens't include second limit
+
+	return []float64{trueSkill, glicko}
 }
 
 // Return 1.0 if the tickets are a perfect match, 0.0 if they are a complete mismatch

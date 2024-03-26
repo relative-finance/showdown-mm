@@ -25,6 +25,7 @@ func RegisterTicket(router *gin.Engine, ctx context.Context) {
 	{
 		tickets.POST("/submit", submitTicket)
 		tickets.GET("/fetch", fetchTickets)
+		tickets.GET("/evaluate", evaluateTickets)
 	}
 
 	router.GET("/ws", func(c *gin.Context) {
@@ -67,5 +68,10 @@ func submitTicket(c *gin.Context) {
 
 func fetchTickets(c *gin.Context) {
 	tickets := wires.Instance.TicketService.GetAllTickets(c)
+	c.JSON(200, tickets)
+}
+
+func evaluateTickets(c *gin.Context) {
+	tickets := wires.Instance.TicketService.EvaluateTickets(c)
 	c.JSON(200, tickets)
 }
