@@ -2,6 +2,7 @@ package services
 
 import (
 	"log"
+	"math"
 	"strconv"
 
 	"github.com/fasmat/trueskill"
@@ -36,7 +37,8 @@ func (s *TicketServiceImpl) GetAllTickets(g *gin.Context) []Ticket {
 		gameTickets = append(gameTickets, Ticket{Member: ticket.Member.(string), Score: ticket.Score})
 	}
 
-	log.Println(CalculateMatchQuality(gameTickets[0:4])) // doens't include second limit
+	log.Println("Calculation with TrueSkill:", CalculateMatchQuality(gameTickets[0:4]))          // doens't include second limit
+	log.Println("Calculation with only Glicko:", CalcMatchQualityNonTrueSkill(gameTickets[0:4])) // doens't include second limit
 	return gameTickets
 }
 
@@ -88,6 +90,34 @@ func CalculateMatchQuality(tickets []Ticket) float64 {
 	}
 
 	return result
+}
+
+func CalcMatchQualityNonTrueSkill(tickets []Ticket) float64 {
+	// Calculate the average elo of the two teams
+	team1 := 0.0
+	team2 := 0.0
+	for i := 0; i < len(tickets); i++ {
+		if i < len(tickets)/2 {
+			team1 += tickets[i].Score
+		} else {
+			team2 += tickets[i].Score
+		}
+	}
+
+	team1 = team1 / float64(len(tickets)/2)
+	team2 = team2 / float64(len(tickets)/2)
+
+	// Calculate the difference in elo between the two teams
+	eloDiff := team1 - team2
+
+	// Calculate the expected win probability of the higher elo team
+	// 1 / (1 + 10^((eloDiff) / 400))
+	winProb := 1 / (1 + math.Pow(10, (eloDiff/400)))
+
+	// Should return 1.0 if the teams are a perfect match, 0.0 if they are a complete mismatch
+	winProb = 1.5 - winProb
+
+	return winProb
 }
 
 func formatPrintTeam(t trueskill.Team) string {
