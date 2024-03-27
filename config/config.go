@@ -8,12 +8,18 @@ import (
 )
 
 type Config struct {
-	Redis  RedisConfig
-	Server ServerConfig
+	Redis     RedisConfig
+	Server    ServerConfig
+	MMRConfig MMRConfig
 }
 
 type ServerConfig struct {
 	Port string
+}
+
+type MMRConfig struct {
+	Mode     string
+	Interval string
 }
 
 type RedisConfig struct {
@@ -38,6 +44,10 @@ func NewConfig() *Config {
 		},
 		Server: ServerConfig{
 			Port: readEnvVar("SERVER_PORT"),
+		},
+		MMRConfig: MMRConfig{
+			Mode:     readEnvVar("MMR_MODE"),
+			Interval: readEnvVar("MMR_INTERVAL"),
 		},
 	}
 }

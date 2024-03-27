@@ -1,6 +1,7 @@
 package wires
 
 import (
+	"mmf/config"
 	"mmf/pkg/redis"
 	"mmf/pkg/services"
 )
@@ -11,10 +12,11 @@ type Wires struct {
 
 var Instance *Wires
 
-func Init() {
+func Init(config *config.Config) {
 	Instance = &Wires{
 		TicketService: services.TicketServiceImpl{
-			Redis: redis.RedisClient,
+			Redis:     redis.RedisClient,
+			MMRConfig: config.MMRConfig,
 		},
 	}
 }

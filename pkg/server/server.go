@@ -3,8 +3,11 @@ package server
 import (
 	"context"
 	"log"
+	"strconv"
+	"time"
 
 	"mmf/config"
+	"mmf/pkg/crawler"
 	"mmf/pkg/redis"
 	"mmf/pkg/server/api"
 	"mmf/wires"
@@ -23,15 +26,14 @@ func NewServer(config *config.Config) *Server {
 }
 
 func (server *Server) Start() {
-	//initCrawler(server.config.redis)
+	initCrawler(server.config.MMRConfig)
 
 	r := gin.Default()
 	r.Use(gin.Logger())
 	r.Use(CORSMiddleware())
 
-	wires.Init()
+	wires.Init(server.config)
 	redis.Init(server.config, context.Background())
-
 	// Recovery middleware recovers from any panics and writes a 500 if there was one.
 	r.Use(gin.Recovery())
 
@@ -56,4 +58,32 @@ func CORSMiddleware() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func initCrawler(config config.MMRConfig) bool {
+	intv, err := strconv.Atoi(config.Interval)
+	if err != nil {
+		log.Println("Error converting interval to int")
+		return false
+	}
+
+	ticker := time.NewTicker(time.Duration(intv) * time.Second)
+	quit := make(chan struct{})
+	go func() bool {
+		for {
+			select {
+			case <-ticker.C:
+				flag := crawler.StartCrawler(config.Mode)
+
+				if !flag {
+					return false
+				}
+			case <-quit:
+				ticker.Stop()
+				return true
+			}
+		}
+	}()
+
+	return true
 }

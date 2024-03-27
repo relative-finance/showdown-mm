@@ -3,6 +3,7 @@ package services
 import (
 	"log"
 	"math"
+	"mmf/config"
 	"strconv"
 
 	"github.com/fasmat/trueskill"
@@ -11,7 +12,8 @@ import (
 )
 
 type TicketServiceImpl struct {
-	Redis *redis.Client
+	Redis     *redis.Client
+	MMRConfig config.MMRConfig
 }
 
 type SubmitTicketRequest struct {
