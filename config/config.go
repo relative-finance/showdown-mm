@@ -21,6 +21,7 @@ type MMRConfig struct {
 	Mode     string
 	Interval string
 	TeamSize int
+	Treshold float64
 }
 
 type RedisConfig struct {
@@ -41,6 +42,8 @@ func NewConfig() *Config {
 		teamSize = 5 // default
 	}
 
+	treshold, err := strconv.ParseFloat(readEnvVar("MMR_TRESHOLD"), 64)
+
 	return &Config{
 		Redis: RedisConfig{
 			Host:     readEnvVar("REDIS_HOST"),
@@ -55,6 +58,7 @@ func NewConfig() *Config {
 			Mode:     readEnvVar("MMR_MODE"),
 			Interval: readEnvVar("MMR_INTERVAL"),
 			TeamSize: teamSize,
+			Treshold: treshold,
 		},
 	}
 }

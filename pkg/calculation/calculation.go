@@ -105,16 +105,17 @@ func EvaluateTickets(config config.MMRConfig) bool {
 	}
 
 	for i := 0; i < len(gameTickets); i++ {
-		if gameTickets[i+10-1].Score-gameTickets[i].Score > 100 {
+		if gameTickets[i+config.TeamSize*2-1].Score-gameTickets[i].Score > 100 { //TODO: make this value dynamic based off the mmr range
 			continue
 		}
 
 		matchTickets := gameTickets[i : i+config.TeamSize*2]
 		tickets1, tickets2 := GetTeams(matchTickets)
 		matchQuality := GetMatchQuality(tickets1, tickets2, config.Mode)
-		log.Printf("%d", matchQuality)
-		if matchQuality > 0.8 {
-			RemoveTickets(matchTickets)
+		log.Printf("%f", matchQuality)
+		if matchQuality > config.Treshold {
+			removeTickets(matchTickets)
+			// TODO: Call ws
 			return true
 		}
 	}
@@ -163,7 +164,7 @@ func GetMatchQuality(tickets1 []model.Ticket, tickets2 []model.Ticket, mode stri
 	}
 }
 
-func RemoveTickets(tickets []model.Ticket) {
+func removeTickets(tickets []model.Ticket) {
 	for _, ticket := range tickets {
 		redis.RedisClient.ZRem("player_elo", ticket.Member)
 	}
