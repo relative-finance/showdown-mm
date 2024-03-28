@@ -2,12 +2,13 @@ package crawler
 
 import (
 	"log"
+	"mmf/config"
 	"mmf/pkg/calculation"
 )
 
-func StartCrawler(mode string) bool {
+func StartCrawler(config config.MMRConfig) bool {
 
-	calculation.EvaluateTickets(mode)
-	log.Printf("bruh")
+	calculation.EvaluateTickets(config)
+	log.Printf("Crawlin'...")
 	return true
 }

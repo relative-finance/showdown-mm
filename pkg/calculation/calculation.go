@@ -3,6 +3,7 @@ package calculation
 import (
 	"log"
 	"math"
+	"mmf/config"
 	"mmf/pkg/model"
 	"mmf/pkg/redis"
 	"strconv"
@@ -91,11 +92,11 @@ func CalcMatchQualityNonTrueSkill(tickets1 []model.Ticket, tickets2 []model.Tick
 	return winProb
 }
 
-func EvaluateTickets(mode string) bool {
+func EvaluateTickets(config config.MMRConfig) bool {
 	var gameTickets []model.Ticket
 	tickets := redis.RedisClient.ZRangeWithScores("player_elo", 0, -1)
 
-	if len(tickets.Val()) < 10 {
+	if len(tickets.Val()) < config.TeamSize*2 {
 		return false
 	}
 
@@ -108,9 +109,9 @@ func EvaluateTickets(mode string) bool {
 			continue
 		}
 
-		matchTickets := gameTickets[i : i+10]
+		matchTickets := gameTickets[i : i+config.TeamSize*2]
 		tickets1, tickets2 := GetTeams(matchTickets)
-		matchQuality := GetMatchQuality(tickets1, tickets2, mode)
+		matchQuality := GetMatchQuality(tickets1, tickets2, config.Mode)
 		log.Printf("%d", matchQuality)
 		if matchQuality > 0.8 {
 			RemoveTickets(matchTickets)

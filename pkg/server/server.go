@@ -73,7 +73,7 @@ func initCrawler(config config.MMRConfig) bool {
 		for {
 			select {
 			case <-ticker.C:
-				flag := crawler.StartCrawler(config.Mode)
+				flag := crawler.StartCrawler(config)
 
 				if !flag {
 					return false

@@ -20,6 +20,7 @@ type ServerConfig struct {
 type MMRConfig struct {
 	Mode     string
 	Interval string
+	TeamSize int
 }
 
 type RedisConfig struct {
@@ -35,6 +36,11 @@ func NewConfig() *Config {
 		db = 0
 	}
 
+	teamSize, err := strconv.Atoi(readEnvVar("MMR_TEAM_SIZE"))
+	if err != nil {
+		teamSize = 5 // default
+	}
+
 	return &Config{
 		Redis: RedisConfig{
 			Host:     readEnvVar("REDIS_HOST"),
@@ -48,6 +54,7 @@ func NewConfig() *Config {
 		MMRConfig: MMRConfig{
 			Mode:     readEnvVar("MMR_MODE"),
 			Interval: readEnvVar("MMR_INTERVAL"),
+			TeamSize: teamSize,
 		},
 	}
 }
