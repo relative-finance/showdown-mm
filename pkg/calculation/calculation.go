@@ -7,6 +7,7 @@ import (
 	"mmf/pkg/model"
 	"mmf/pkg/redis"
 	"mmf/pkg/server/api"
+	"mmf/pkg/utils"
 	"strconv"
 
 	"github.com/fasmat/trueskill"
@@ -121,6 +122,9 @@ func EvaluateTickets(config config.MMRConfig) bool {
 				api.SendMessageToUser(ticket.Member, []byte("Match found"))
 				api.DisconnectUser(ticket.Member)
 			}
+			// TODO: Make this configurable to support multiple games
+			// Schedule the match
+			utils.ScheduleDota2Match(tickets1, tickets2)
 			return true
 		}
 	}
