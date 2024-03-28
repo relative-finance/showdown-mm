@@ -103,7 +103,7 @@ func EvaluateTickets(mode string) bool {
 		gameTickets = append(gameTickets, model.Ticket{Member: ticket.Member.(string), Score: ticket.Score})
 	}
 
-	for i := 0; i < len(gameTickets)-10; i++ {
+	for i := 0; i < len(gameTickets); i++ {
 		if gameTickets[i+10-1].Score-gameTickets[i].Score > 100 {
 			continue
 		}
@@ -111,6 +111,7 @@ func EvaluateTickets(mode string) bool {
 		matchTickets := gameTickets[i : i+10]
 		tickets1, tickets2 := GetTeams(matchTickets)
 		matchQuality := GetMatchQuality(tickets1, tickets2, mode)
+		log.Printf("%d", matchQuality)
 		if matchQuality > 0.8 {
 			RemoveTickets(matchTickets)
 			return true
@@ -122,14 +123,29 @@ func EvaluateTickets(mode string) bool {
 
 func GetTeams(tickets []model.Ticket) ([]model.Ticket, []model.Ticket) {
 	var tickets1, tickets2 []model.Ticket
-	for i := 0; i < len(tickets)/2; i++ {
-		if i%2 == 0 {
-			tickets1 = append(tickets1, tickets[i])
-			tickets1 = append(tickets1, tickets[len(tickets)-i-1])
-		} else {
-			tickets2 = append(tickets2, tickets[i])
-			tickets2 = append(tickets2, tickets[len(tickets)-i-1])
+	if len(tickets)%4 == 0 {
+		for i := 0; i < len(tickets)/2; i++ {
+			if i%2 == 0 {
+				tickets1 = append(tickets1, tickets[i])
+				tickets1 = append(tickets1, tickets[len(tickets)-i-1])
+			} else {
+				tickets2 = append(tickets2, tickets[i])
+				tickets2 = append(tickets2, tickets[len(tickets)-i-1])
+			}
 		}
+	} else {
+		for i := 0; i < len(tickets)/2-1; i++ {
+			if i%2 == 0 {
+				tickets1 = append(tickets1, tickets[i])
+				tickets1 = append(tickets1, tickets[len(tickets)-i-1])
+			} else {
+				tickets2 = append(tickets2, tickets[i])
+				tickets2 = append(tickets2, tickets[len(tickets)-i-1])
+			}
+		}
+
+		tickets1 = append(tickets1, tickets[len(tickets)/2])
+		tickets2 = append(tickets2, tickets[len(tickets)/2+1])
 	}
 
 	return tickets1, tickets2
