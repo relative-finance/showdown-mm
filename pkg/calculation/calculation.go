@@ -6,13 +6,14 @@ import (
 	"mmf/config"
 	"mmf/pkg/model"
 	"mmf/pkg/redis"
+	"mmf/pkg/server/api"
 	"strconv"
 
 	"github.com/fasmat/trueskill"
 )
 
 // Return 1.0 if the tickets are a perfect match, 0.0 if they are a complete mismatch
-func CalculateMatchQuality(tickets1 []model.Ticket, tickets2 []model.Ticket) float64 {
+func calculateMatchQuality(tickets1 []model.Ticket, tickets2 []model.Ticket) float64 {
 	var players1, players2 []trueskill.Player
 
 	for _, ticket := range tickets1 {
@@ -64,7 +65,7 @@ func CalculateMatchQuality(tickets1 []model.Ticket, tickets2 []model.Ticket) flo
 	return result
 }
 
-func CalcMatchQualityNonTrueSkill(tickets1 []model.Ticket, tickets2 []model.Ticket) float64 {
+func calcMatchQualityNonTrueSkill(tickets1 []model.Ticket, tickets2 []model.Ticket) float64 {
 	// Calculate the average elo of the two teams
 	team1 := 0.0
 	team2 := 0.0
@@ -110,12 +111,16 @@ func EvaluateTickets(config config.MMRConfig) bool {
 		}
 
 		matchTickets := gameTickets[i : i+config.TeamSize*2]
-		tickets1, tickets2 := GetTeams(matchTickets)
-		matchQuality := GetMatchQuality(tickets1, tickets2, config.Mode)
+		tickets1, tickets2 := getTeams(matchTickets)
+		matchQuality := getMatchQuality(tickets1, tickets2, config.Mode)
 		log.Printf("%f", matchQuality)
 		if matchQuality > config.Treshold {
 			removeTickets(matchTickets)
-			// TODO: Call ws
+			// Send message to all players in the match
+			for _, ticket := range matchTickets {
+				api.SendMessageToUser(ticket.Member, []byte("Match found"))
+				api.DisconnectUser(ticket.Member)
+			}
 			return true
 		}
 	}
@@ -123,7 +128,7 @@ func EvaluateTickets(config config.MMRConfig) bool {
 	return false
 }
 
-func GetTeams(tickets []model.Ticket) ([]model.Ticket, []model.Ticket) {
+func getTeams(tickets []model.Ticket) ([]model.Ticket, []model.Ticket) {
 	var tickets1, tickets2 []model.Ticket
 	if len(tickets)%4 == 0 {
 		for i := 0; i < len(tickets)/2; i++ {
@@ -153,14 +158,14 @@ func GetTeams(tickets []model.Ticket) ([]model.Ticket, []model.Ticket) {
 	return tickets1, tickets2
 }
 
-func GetMatchQuality(tickets1 []model.Ticket, tickets2 []model.Ticket, mode string) float64 {
+func getMatchQuality(tickets1 []model.Ticket, tickets2 []model.Ticket, mode string) float64 {
 	switch mode {
 	case "trueskill":
-		return CalculateMatchQuality(tickets1, tickets2)
+		return calculateMatchQuality(tickets1, tickets2)
 	case "glicko":
-		return CalcMatchQualityNonTrueSkill(tickets1, tickets2)
+		return calcMatchQualityNonTrueSkill(tickets1, tickets2)
 	default:
-		return CalculateMatchQuality(tickets1, tickets2)
+		return calculateMatchQuality(tickets1, tickets2)
 	}
 }
 

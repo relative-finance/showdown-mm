@@ -43,6 +43,9 @@ func NewConfig() *Config {
 	}
 
 	treshold, err := strconv.ParseFloat(readEnvVar("MMR_TRESHOLD"), 64)
+	if err != nil {
+		treshold = 0.8 // default
+	}
 
 	return &Config{
 		Redis: RedisConfig{

@@ -2,7 +2,10 @@ package api
 
 import (
 	"context"
+	"log"
 	"net/http"
+	"sync"
+	"time"
 
 	"mmf/pkg/model"
 	"mmf/wires"
@@ -19,32 +22,41 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+// Map for user connection
+var userConnections = make(map[string]*websocket.Conn)
+var userConnectionsMutex sync.Mutex
+
 func RegisterTicket(router *gin.Engine, ctx context.Context) {
 	tickets := router.Group("/tickets")
 	{
 		tickets.POST("/submit", submitTicket)
 		tickets.GET("/fetch", fetchTickets)
-		// tickets.GET("/evaluate", evaluateTickets)
 	}
 
-	router.GET("/ws", func(c *gin.Context) {
+	router.GET("/ws/:steamId", func(c *gin.Context) {
+		steamId := c.Param("steamId")
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			return
 		}
 		defer conn.Close()
 
-		// for {
-		// 	msg := wires.Instance.TicketService.EvaluateTickets(c)
-		// 	if len(msg) == 10 {
-		// 		conn.WriteJSON(msg)
-		// 		// TODO: Add scheduled task to check if all players are ready and begin the game
-		// 	} else {
-		// 		conn.WriteMessage(websocket.TextMessage, []byte("Waiting for more players to join the game."))
-		// 	}
-		// 	time.Sleep(1 * time.Second)
+		userConnectionsMutex.Lock()
+		userConnections[steamId] = conn
+		userConnectionsMutex.Unlock()
 
-		// }
+		defer func() {
+			userConnectionsMutex.Lock()
+			delete(userConnections, steamId)
+			userConnectionsMutex.Unlock()
+		}()
+
+		// Keep player connected
+		for {
+			// TODO: Read elo form relay
+			conn.WriteMessage(websocket.TextMessage, []byte("Hello, "+steamId))
+			time.Sleep(3 * time.Second)
+		}
 	})
 
 }
@@ -70,7 +82,36 @@ func fetchTickets(c *gin.Context) {
 	c.JSON(200, tickets)
 }
 
-// func evaluateTickets(c *gin.Context) {
-// 	tickets := wires.Instance.TicketService.EvaluateTickets(c)
-// 	c.JSON(200, tickets)
-// }
+func SendMessageToUser(steamId string, message []byte) {
+	userConnectionsMutex.Lock()
+	defer userConnectionsMutex.Unlock()
+
+	conn, ok := userConnections[steamId]
+	if !ok {
+		log.Println("User not connected")
+		return
+	}
+
+	if err := conn.WriteMessage(websocket.TextMessage, message); err != nil {
+		log.Println(err)
+	}
+}
+
+func DisconnectUser(steamId string) {
+	userConnectionsMutex.Lock()
+	defer userConnectionsMutex.Unlock()
+
+	conn, ok := userConnections[steamId]
+	if !ok {
+		log.Println("User not connected")
+		return
+	}
+
+	// Close the connection
+	if err := conn.Close(); err != nil {
+		log.Println("Error closing connection:", err)
+	}
+
+	// Remove the connection from the map
+	delete(userConnections, steamId)
+}
