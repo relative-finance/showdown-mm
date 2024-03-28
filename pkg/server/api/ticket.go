@@ -3,9 +3,8 @@ package api
 import (
 	"context"
 	"net/http"
-	"time"
 
-	"mmf/pkg/services"
+	"mmf/pkg/model"
 	"mmf/wires"
 
 	"github.com/gin-gonic/gin"
@@ -25,7 +24,7 @@ func RegisterTicket(router *gin.Engine, ctx context.Context) {
 	{
 		tickets.POST("/submit", submitTicket)
 		tickets.GET("/fetch", fetchTickets)
-		tickets.GET("/evaluate", evaluateTickets)
+		// tickets.GET("/evaluate", evaluateTickets)
 	}
 
 	router.GET("/ws", func(c *gin.Context) {
@@ -35,23 +34,23 @@ func RegisterTicket(router *gin.Engine, ctx context.Context) {
 		}
 		defer conn.Close()
 
-		for {
-			msg := wires.Instance.TicketService.EvaluateTickets(c)
-			if len(msg) == 10 {
-				conn.WriteJSON(msg)
-				// TODO: Add scheduled task to check if all players are ready and begin the game
-			} else {
-				conn.WriteMessage(websocket.TextMessage, []byte("Waiting for more players to join the game."))
-			}
-			time.Sleep(1 * time.Second)
+		// for {
+		// 	msg := wires.Instance.TicketService.EvaluateTickets(c)
+		// 	if len(msg) == 10 {
+		// 		conn.WriteJSON(msg)
+		// 		// TODO: Add scheduled task to check if all players are ready and begin the game
+		// 	} else {
+		// 		conn.WriteMessage(websocket.TextMessage, []byte("Waiting for more players to join the game."))
+		// 	}
+		// 	time.Sleep(1 * time.Second)
 
-		}
+		// }
 	})
 
 }
 
 func submitTicket(c *gin.Context) {
-	var submitTicketRequest services.SubmitTicketRequest
+	var submitTicketRequest model.SubmitTicketRequest
 	c.BindJSON(&submitTicketRequest)
 
 	err := wires.Instance.TicketService.SubmitTicket(c, submitTicketRequest)
@@ -71,7 +70,7 @@ func fetchTickets(c *gin.Context) {
 	c.JSON(200, tickets)
 }
 
-func evaluateTickets(c *gin.Context) {
-	tickets := wires.Instance.TicketService.EvaluateTickets(c)
-	c.JSON(200, tickets)
-}
+// func evaluateTickets(c *gin.Context) {
+// 	tickets := wires.Instance.TicketService.EvaluateTickets(c)
+// 	c.JSON(200, tickets)
+// }
