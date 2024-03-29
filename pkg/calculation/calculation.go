@@ -6,8 +6,8 @@ import (
 	"mmf/config"
 	"mmf/pkg/model"
 	"mmf/pkg/redis"
-	"mmf/pkg/server/api"
 	"mmf/pkg/utils"
+	"mmf/pkg/ws"
 	"strconv"
 
 	"github.com/fasmat/trueskill"
@@ -119,8 +119,8 @@ func EvaluateTickets(config config.MMRConfig) bool {
 			removeTickets(matchTickets)
 			// Send message to all players in the match
 			for _, ticket := range matchTickets {
-				api.SendMessageToUser(ticket.Member, []byte("Match found"))
-				api.DisconnectUser(ticket.Member)
+				ws.SendMessageToUser(ticket.Member, []byte("Match found"))
+				ws.DisconnectUser(ticket.Member)
 			}
 			// TODO: Make this configurable to support multiple games
 			// Schedule the match
