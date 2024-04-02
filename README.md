@@ -14,7 +14,6 @@ $ cd ..
 $ go run /cmd/main.go
 ```
 
-
 ## How to test websockets
 
 ```bash
@@ -23,4 +22,14 @@ $ npm install -g wscat
 
 # Connect to the websocket server
 $ wscat -c ws://localhost:8080/ws
+```
+
+## How to connect to cs2 or dota2 queue
+
+```bash
+# For CS2
+$ wscat -c ws://localhost:8080/ws/cs2queue/{steamId}
+
+# For Dota2
+$ wscat -c ws://localhost:8080/ws/d2queue/{steamId}
 ```
