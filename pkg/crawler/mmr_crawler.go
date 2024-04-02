@@ -1,14 +1,14 @@
 package crawler
 
 import (
-	"log"
 	"mmf/config"
 	"mmf/pkg/calculation"
+	"mmf/pkg/constants"
 )
 
 func StartCrawler(config config.MMRConfig) bool {
-
-	calculation.EvaluateTickets(config)
-	log.Printf("Crawlin'...")
+	for _, queue := range constants.GetAllQueueTypes() {
+		calculation.EvaluateTickets(config, queue)
+	}
 	return true
 }
