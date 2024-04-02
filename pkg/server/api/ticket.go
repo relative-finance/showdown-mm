@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 
-	"mmf/pkg/model"
 	"mmf/pkg/ws"
 	"mmf/wires"
 
@@ -13,34 +12,23 @@ import (
 func RegisterTicket(router *gin.Engine, ctx context.Context) {
 	tickets := router.Group("/tickets")
 	{
-		tickets.POST("/submit", submitTicket)
-		tickets.GET("/fetch", fetchTickets)
+		// tickets.POST("/submit/:game", submitTicket)
+		tickets.GET("/fetch/:queue", fetchTickets)
 	}
 
-	router.GET("/ws/:steamId", func(c *gin.Context) {
-		steamId := c.Param("steamId")
-		ws.StartWebSocket(steamId, c)
-	})
+	router.GET("/ws/:queue/:steamId", wsGet)
 
 }
 
-func submitTicket(c *gin.Context) {
-	var submitTicketRequest model.SubmitTicketRequest
-	c.BindJSON(&submitTicketRequest)
+func wsGet(c *gin.Context) {
+	queue := c.Param("queue")
+	steamId := c.Param("steamId")
 
-	err := wires.Instance.TicketService.SubmitTicket(c, submitTicketRequest)
-	if err != nil {
-		c.JSON(500, gin.H{
-			"error": err.Error(),
-		})
-	} else {
-		c.JSON(200, gin.H{
-			"message": "Ticket submitted",
-		})
-	}
+	ws.StartWebSocket(queue, steamId, c)
 }
 
 func fetchTickets(c *gin.Context) {
-	tickets := wires.Instance.TicketService.GetAllTickets(c)
+	queue := c.Param("queue")
+	tickets := wires.Instance.TicketService.GetAllTickets(c, queue)
 	c.JSON(200, tickets)
 }

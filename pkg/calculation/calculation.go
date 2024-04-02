@@ -4,6 +4,7 @@ import (
 	"log"
 	"math"
 	"mmf/config"
+	"mmf/pkg/constants"
 	"mmf/pkg/model"
 	"mmf/pkg/redis"
 	"mmf/pkg/utils"
@@ -94,9 +95,9 @@ func calcMatchQualityNonTrueSkill(tickets1 []model.Ticket, tickets2 []model.Tick
 	return winProb
 }
 
-func EvaluateTickets(config config.MMRConfig) bool {
+func EvaluateTickets(config config.MMRConfig, queue constants.QueueType) bool {
 	var gameTickets []model.Ticket
-	tickets := redis.RedisClient.ZRangeWithScores("player_elo", 0, -1)
+	tickets := redis.RedisClient.ZRangeWithScores(constants.GetIndexNameQueue(queue), 0, -1)
 
 	if len(tickets.Val()) < config.TeamSize*2 {
 		return false
@@ -116,7 +117,7 @@ func EvaluateTickets(config config.MMRConfig) bool {
 		matchQuality := getMatchQuality(tickets1, tickets2, config.Mode)
 		log.Printf("%f", matchQuality)
 		if matchQuality > config.Treshold {
-			removeTickets(matchTickets)
+			removeTickets(matchTickets, queue)
 			// Send message to all players in the match
 			for _, ticket := range matchTickets {
 				ws.SendMessageToUser(ticket.Member, []byte("Match found"))
@@ -173,8 +174,8 @@ func getMatchQuality(tickets1 []model.Ticket, tickets2 []model.Ticket, mode stri
 	}
 }
 
-func removeTickets(tickets []model.Ticket) {
+func removeTickets(tickets []model.Ticket, queue constants.QueueType) {
 	for _, ticket := range tickets {
-		redis.RedisClient.ZRem("player_elo", ticket.Member)
+		redis.RedisClient.ZRem(constants.GetIndexNameQueue(queue), ticket.Member)
 	}
 }

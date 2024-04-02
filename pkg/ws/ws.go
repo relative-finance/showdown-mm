@@ -26,7 +26,7 @@ var upgrader = websocket.Upgrader{
 var userConnections = make(map[string]*websocket.Conn)
 var userConnectionsMutex sync.Mutex
 
-func StartWebSocket(steamId string, c *gin.Context) {
+func StartWebSocket(game string, steamId string, c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		return
@@ -64,7 +64,7 @@ func StartWebSocket(steamId string, c *gin.Context) {
 		return
 	}
 
-	wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{SteamID: steamId, Elo: eloData.Elo})
+	wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{SteamID: steamId, Elo: eloData.Elo}, game)
 	defer resp.Body.Close()
 
 	for {
