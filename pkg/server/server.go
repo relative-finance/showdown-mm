@@ -26,7 +26,7 @@ func NewServer(config *config.Config) *Server {
 }
 
 func (server *Server) Start() {
-	initCrawler(server.config.MMRConfig)
+	InitCrawler(server.config.MMRConfig)
 
 	r := gin.Default()
 	r.Use(gin.Logger())
@@ -60,7 +60,7 @@ func CORSMiddleware() gin.HandlerFunc {
 	}
 }
 
-func initCrawler(config config.MMRConfig) bool {
+func InitCrawler(config config.MMRConfig) bool {
 	intv, err := strconv.Atoi(config.Interval)
 	if err != nil {
 		log.Println("Error converting interval to int")
