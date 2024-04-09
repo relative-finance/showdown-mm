@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"log"
 	"mmf/pkg/model"
+	"mmf/pkg/redis"
 	"mmf/wires"
 	"net/http"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -43,66 +43,49 @@ func StartWebSocket(game string, steamId string, c *gin.Context) {
 		userConnectionsMutex.Unlock()
 	}()
 
+	eloData := getDataFromRelay(steamId)
+	wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{SteamID: steamId, Elo: eloData.Elo}, game)
+
+	conn.WriteMessage(websocket.TextMessage, []byte("Hello, "+steamId))
+	_, mess, err := conn.ReadMessage()
+	if err != nil {
+		log.Println(err)
+	}
+
+	var userResponse UserResponse
+	if err = json.Unmarshal(mess, &userResponse); err != nil {
+		log.Println(err)
+		return
+	}
+
+	redisPlayer := redis.RedisClient.HGet(userResponse.MatchId, steamId).Val()
+	matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
+	log.Println("MatchPlayer: ", matchPlayer)
+	log.Println("RedisPlayer: ", redisPlayer)
+
+	matchPlayer.Option = userResponse.Option
+	redis.RedisClient.HSet(userResponse.MatchId, steamId, matchPlayer.Marshal())
+}
+
+func getDataFromRelay(steamId string) *model.EloData {
 	relayAddress := os.Getenv("RELAY_ADDRESS")
 	resp, err := http.Get(relayAddress + "/statistics/elo/" + steamId)
 	if err != nil {
 		log.Println("Error getting elo from relay")
-		return
+		return &model.EloData{Elo: 1500}
 	}
 	if resp.StatusCode != 200 {
 		log.Println("Error getting elo from relay")
-		log.Panicln(resp.Body)
-		return
-	}
-	var eloData struct {
-		Elo float64 `json:"elo"`
+		return &model.EloData{Elo: 1500}
 	}
 
+	var eloData model.EloData
+
+	defer resp.Body.Close()
 	err = json.NewDecoder(resp.Body).Decode(&eloData)
 	if err != nil {
 		log.Println("Error decoding elo data")
-		return
+		return &model.EloData{Elo: 1500}
 	}
-
-	wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{SteamID: steamId, Elo: eloData.Elo}, game)
-	defer resp.Body.Close()
-
-	for {
-		conn.WriteMessage(websocket.TextMessage, []byte("Hello, "+steamId))
-		time.Sleep(3 * time.Second)
-	}
-}
-
-func SendMessageToUser(steamId string, message []byte) {
-	userConnectionsMutex.Lock()
-	defer userConnectionsMutex.Unlock()
-
-	conn, ok := userConnections[steamId]
-	if !ok {
-		log.Println("User not connected")
-		return
-	}
-
-	if err := conn.WriteMessage(websocket.TextMessage, message); err != nil {
-		log.Println(err)
-	}
-}
-
-func DisconnectUser(steamId string) {
-	userConnectionsMutex.Lock()
-	defer userConnectionsMutex.Unlock()
-
-	conn, ok := userConnections[steamId]
-	if !ok {
-		log.Println("User not connected")
-		return
-	}
-
-	// Close the connection
-	if err := conn.Close(); err != nil {
-		log.Println("Error closing connection:", err)
-	}
-
-	// Remove the connection from the map
-	delete(userConnections, steamId)
+	return &eloData
 }

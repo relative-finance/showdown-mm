@@ -7,6 +7,7 @@ import (
 	"log"
 	"mmf/pkg/model"
 	"net/http"
+	"os"
 	"strconv"
 )
 
@@ -73,7 +74,7 @@ func ScheduleDota2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 		teamB = append(teamB, player)
 	}
 
-	url := "http://d2-api:8080/v1/match" // TODO: Move endpoints and urls to .env/config
+	url := os.Getenv("D2API") + "/v1/match"
 	requestBody := MatchRequestBody{
 		TeamA: teamA,
 		TeamB: teamB,

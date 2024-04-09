@@ -20,4 +20,5 @@ func Init(config *config.Config, ctx context.Context) {
 	if err != nil {
 		log.Fatalf("Could not connect to Redis: %s", err)
 	}
+	log.Println("Connected to Redis")
 }
