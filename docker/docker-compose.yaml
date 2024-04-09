@@ -22,6 +22,12 @@ services:
       - "9876:9876"
     depends_on:
       - redis
+    command: go run ./cmd/main.go
+    develop:
+      watch:
+        - action: sync+restart
+          path: ../
+          target: /app
 
 networks:
   d2api_default:
