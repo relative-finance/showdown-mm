@@ -44,8 +44,12 @@ func waitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 		log.Println("All players accepted: ", allAccepted)
 
 		if allAccepted {
-			redis.RedisClient.Del(matchId)
-
+			ret := redis.RedisClient.Del(matchId)
+			if ret.Err() != nil {
+				log.Println("Error deleting match from redis: ", ret.Err())
+			}
+			log.Println("Ret", ret.Val())
+			ticker.Stop()
 			utils.ScheduleDota2Match(tickets1, tickets2)
 			break
 		}
@@ -80,29 +84,22 @@ func matchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, den
 
 func getTeams(tickets []model.Ticket) ([]model.Ticket, []model.Ticket) {
 	var tickets1, tickets2 []model.Ticket
-	if len(tickets)%4 == 0 {
-		for i := 0; i < len(tickets)/2; i++ {
-			if i%2 == 0 {
-				tickets1 = append(tickets1, tickets[i])
-				tickets1 = append(tickets1, tickets[len(tickets)-i-1])
-			} else {
-				tickets2 = append(tickets2, tickets[i])
-				tickets2 = append(tickets2, tickets[len(tickets)-i-1])
-			}
+	mid := len(tickets) / 2
+	length := len(tickets)
+	for i := 0; i < mid; i++ {
+		if i%2 == 0 {
+			tickets1 = append(tickets1, tickets[i], tickets[length-i-1])
+		} else {
+			tickets2 = append(tickets2, tickets[i], tickets[length-i-1])
 		}
-	} else {
-		for i := 0; i < len(tickets)/2-1; i++ {
-			if i%2 == 0 {
-				tickets1 = append(tickets1, tickets[i])
-				tickets1 = append(tickets1, tickets[len(tickets)-i-1])
-			} else {
-				tickets2 = append(tickets2, tickets[i])
-				tickets2 = append(tickets2, tickets[len(tickets)-i-1])
-			}
-		}
+	}
 
-		tickets1 = append(tickets1, tickets[len(tickets)/2])
-		tickets2 = append(tickets2, tickets[len(tickets)/2+1])
+	// When there are 8 tickets, the mid is 4
+	// First team will have tickets 0, 9, 2, 7, 4
+	// Second team will have tickets 1, 8, 3, 6, 5
+	if length%4 != 0 {
+		tickets1 = tickets1[:len(tickets1)-1]
+		tickets2 = append(tickets2, tickets[mid])
 	}
 
 	return tickets1, tickets2
