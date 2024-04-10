@@ -17,11 +17,11 @@ import (
 	"github.com/fasmat/trueskill"
 )
 
-func waitingForMatchThread(matchId string, queue constants.QueueType, tickets1 []model.Ticket, tickets2 []model.Ticket) {
+func waitingForMatchThread(matchId string, queue constants.QueueType, tickets1 []model.Ticket, tickets2 []model.Ticket, timeToCancelMatch int) {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
-	end := time.Now().Add(1 * time.Minute)
+	end := time.Now().Add(time.Duration(timeToCancelMatch) * time.Second)
 	for range ticker.C {
 		if time.Now().After(end) {
 			break
@@ -32,6 +32,7 @@ func waitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 			matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
 
 			if matchPlayer.Option == 0 {
+				ticker.Stop()
 				matchFailedReturnPlayersToMM(queue, matchId, true)
 				return
 			}
@@ -59,9 +60,9 @@ func waitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 }
 
 func matchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, denied bool) {
-	statusMarker := 0
+	statusMarker := 1
 	if denied {
-		statusMarker = 1
+		statusMarker = 0
 	}
 
 	for _, redisPlayer := range redis.RedisClient.HGetAll(matchId).Val() {
@@ -74,6 +75,7 @@ func matchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, den
 
 		if matchPlayer.Option > statusMarker {
 			redis.RedisClient.ZAdd(constants.GetIndexNameQueue(queue), r.Z{Score: matchPlayer.Score, Member: matchPlayer.SteamId})
+			continue
 		}
 
 		ws.DisconnectUser(matchPlayer.SteamId)

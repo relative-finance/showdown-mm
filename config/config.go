@@ -18,10 +18,11 @@ type ServerConfig struct {
 }
 
 type MMRConfig struct {
-	Mode     string
-	Interval string
-	TeamSize int
-	Treshold float64
+	Mode              string
+	Interval          string
+	TeamSize          int
+	Treshold          float64
+	TimeToCancelMatch int
 }
 
 type RedisConfig struct {
@@ -47,6 +48,11 @@ func NewConfig() *Config {
 		treshold = 0.8 // default
 	}
 
+	timeToCancelMatch, err := strconv.Atoi(readEnvVar("MMR_TIME_TO_CANCEL_MATCH"))
+	if err != nil {
+		timeToCancelMatch = 60 // default
+	}
+
 	return &Config{
 		Redis: RedisConfig{
 			Host:     readEnvVar("REDIS_HOST"),
@@ -58,10 +64,11 @@ func NewConfig() *Config {
 			Port: readEnvVar("SERVER_PORT"),
 		},
 		MMRConfig: MMRConfig{
-			Mode:     readEnvVar("MMR_MODE"),
-			Interval: readEnvVar("MMR_INTERVAL"),
-			TeamSize: teamSize,
-			Treshold: treshold,
+			Mode:              readEnvVar("MMR_MODE"),
+			Interval:          readEnvVar("MMR_INTERVAL"),
+			TeamSize:          teamSize,
+			Treshold:          treshold,
+			TimeToCancelMatch: timeToCancelMatch,
 		},
 	}
 }
