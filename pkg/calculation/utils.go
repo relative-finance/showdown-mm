@@ -51,7 +51,12 @@ func waitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 			}
 			log.Println("Ret", ret.Val())
 			ticker.Stop()
-			utils.ScheduleDota2Match(tickets1, tickets2)
+			switch queue {
+			case constants.D2Queue:
+				utils.ScheduleDota2Match(tickets1, tickets2)
+			case constants.CS2Queue:
+				log.Println("CS2 match scheduled")
+			}
 			break
 		}
 	}
