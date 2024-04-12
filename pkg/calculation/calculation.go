@@ -43,7 +43,7 @@ func EvaluateTickets(config config.MMRConfig, queue constants.QueueType) bool {
 			if !sent {
 				return false
 			}
-			go waitingForMatchThread(matchId, queue, tickets1, tickets2)
+			go waitingForMatchThread(matchId, queue, tickets1, tickets2, config.TimeToCancelMatch)
 			return true
 		}
 	}

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"log"
 	"mmf/config"
 	"mmf/pkg/constants"
 	"mmf/pkg/model"
@@ -21,6 +22,10 @@ func (s *TicketServiceImpl) SubmitTicket(g *gin.Context, submitTicketRequest mod
 
 func (s *TicketServiceImpl) GetAllTickets(g *gin.Context, queue string) []model.Ticket {
 	tickets := s.Redis.ZRangeWithScores(constants.GetIndexNameStr(queue), 0, -1) // Includes second limit
+	if tickets.Err() != nil {
+		log.Println("Error fetching tickets", tickets.Err())
+		return nil
+	}
 	var gameTickets []model.Ticket
 	for _, ticket := range tickets.Val() {
 		gameTickets = append(gameTickets, model.Ticket{Member: ticket.Member.(string), Score: ticket.Score})
