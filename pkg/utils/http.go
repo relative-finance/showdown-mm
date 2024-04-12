@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"time"
 )
 
 // MatchRequestBodyD2 represents the structure of the JSON body for the REST call
@@ -25,32 +24,32 @@ type MatchRequestBodyD2 struct {
 	StartTime string `json:"startTime"`
 }
 
-type TeamInfo struct {
+// CS2
+type Team struct {
 	Name string `json:"name"`
 }
 
-type PlayerInfo struct {
-	Team          string `json:"team"`
-	SteamId64     string `json:"steam_id_64"`
-	WalletAddress string `json:"walletAddress"`
+type PlayerDatHost struct {
+	Team      string `json:"team"`
+	SteamId64 string `json:"steam_id_64"`
 }
-
+type GameSettings struct {
+	Map                 string `json:"map"`
+	Password            string `json:"password"`
+	ConnectTime         int    `json:"connect_time"`
+	MatchBeginCountdown int    `json:"match_begin_countdown"`
+	EnableTechPause     bool   `json:"enable_tech_pause"`
+}
+type Webhooks struct {
+	MatchEndURL string `json:"match_end_url"`
+	RoundEndURL string `json:"round_end_url"`
+}
 type MatchRequestBodyCS2 struct {
-	Region string `json:"region"`
-	// matchId int `json:"matchId"`
-	// tournamentId int `json:"tournamentId"`
-	Team1Id        int      `json:"team1Id"`
-	Team2Id        int      `json:"team2Id"`
-	Team1          TeamInfo `json:"team1"`
-	Team2          TeamInfo `json:"team2"`
-	Map            string   `json:"map"`
-	Currency       string   `json:"currency"`
-	DeadlineEpoch  int64    `json:"deadlineEpoch"`
-	StartEpoch     int64    `json:"startEpoch"`
-	NumberOfRounds int32    `json:"numberOfRounds"`
-	RoundTime      int32    `json:"roundTime"`
-	// Prize int64 `json:"prize"`
-	Players []PlayerInfo `json:"players"`
+	Team1    Team            `json:"team1"`
+	Team2    Team            `json:"team2"`
+	Webhooks Webhooks        `json:"webhooks"`
+	Settings GameSettings    `json:"settings"`
+	Players  []PlayerDatHost `json:"players"`
 }
 
 func ScheduleMatch(url string, requestBody interface{}) error {
@@ -130,39 +129,39 @@ func ScheduleDota2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 func ScheduleCS2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 	log.Println("Scheduling CS2 match")
 
-	url := os.Getenv("CS2API") + "/v1/match"
+	url := os.Getenv("CS2API") + "/v1/start-match"
 	requestBody := MatchRequestBodyCS2{
-		Region:  "stockholm",
-		Team1Id: 1,
-		Team2Id: 2,
-		Team1: TeamInfo{
-			Name: "Team 1",
+		Team1: Team{
+			Name: "team1",
 		},
-		Team2: TeamInfo{
-			Name: "Team 2",
+		Team2: Team{
+			Name: "team2",
 		},
-		Map:            "de_dust2",
-		Currency:       "0x0000000000000000000000000000000000000000",
-		DeadlineEpoch:  time.Now().Add(1 * time.Minute).Unix(),
-		StartEpoch:     time.Now().Add(10 * time.Minute).Unix(),
-		NumberOfRounds: 15,
-		RoundTime:      1000,
-		Players:        []PlayerInfo{},
+		Players: []PlayerDatHost{},
+		Settings: GameSettings{
+			Map:                 "de_dust2",
+			Password:            "test",
+			ConnectTime:         120,
+			MatchBeginCountdown: 10,
+			EnableTechPause:     false,
+		},
+		Webhooks: Webhooks{
+			MatchEndURL: "",
+			RoundEndURL: "",
+		},
 	}
 
 	for _, ticket := range tickets1 {
-		requestBody.Players = append(requestBody.Players, PlayerInfo{
-			Team:          "team1",
-			SteamId64:     ticket.Member,
-			WalletAddress: "0x26deC32bF104E11DB3d969671cdc3f167D68040C",
+		requestBody.Players = append(requestBody.Players, PlayerDatHost{
+			Team:      "team1",
+			SteamId64: ticket.Member,
 		})
 	}
 
 	for _, ticket := range tickets2 {
-		requestBody.Players = append(requestBody.Players, PlayerInfo{
-			Team:          "team2",
-			SteamId64:     ticket.Member,
-			WalletAddress: "0x1270026872A6A38b4b0868552521E56C2d14D227",
+		requestBody.Players = append(requestBody.Players, PlayerDatHost{
+			Team:      "team2",
+			SteamId64: ticket.Member,
 		})
 	}
 
