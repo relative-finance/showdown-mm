@@ -4,7 +4,8 @@ services:
     image: redis:latest
     container_name: redis-mmf
     networks:
-      - d2api_default
+      # - d2api_default
+      - mmf_network
     ports:
       - "6378:6379"
     restart: always
@@ -17,7 +18,7 @@ services:
     env_file:
       - ../.env
     networks:
-      - d2api_default
+      - mmf_network
     ports:
       - "9876:9876"
     depends_on:
@@ -30,5 +31,5 @@ services:
           target: /app
 
 networks:
-  d2api_default:
-    external: true
+  mmf_network:
+    driver: bridge
