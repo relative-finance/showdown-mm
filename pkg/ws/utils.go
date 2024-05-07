@@ -16,12 +16,12 @@ func SendMatchFoundToPlayers(matchId string, matchTickets []model.Ticket) bool {
 	}
 
 	for _, ticket := range matchTickets {
-		sendMessageToUser(ticket.Member, marshalled)
+		SendMessageToUser(ticket.Member, marshalled)
 	}
 	return true
 }
 
-func sendMessageToUser(steamId string, message []byte) {
+func SendMessageToUser(steamId string, message []byte) {
 	userConnectionsMutex.Lock()
 	defer userConnectionsMutex.Unlock()
 

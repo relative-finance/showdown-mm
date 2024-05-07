@@ -4,77 +4,37 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"mmf/pkg/model"
+	"mmf/pkg/ws"
 	"net/http"
 	"os"
 	"strconv"
 )
 
-// MatchRequestBodyD2 represents the structure of the JSON body for the REST call
-type MatchRequestBodyD2 struct {
-	TeamA       []int64 `json:"teamA"`
-	TeamB       []int64 `json:"teamB"`
-	LobbyConfig struct {
-		GameName     string `json:"gameName"`
-		ServerRegion int    `json:"serverRegion"`
-		PassKey      string `json:"passKey"`
-		GameMode     string `json:"gameMode"`
-	} `json:"lobbyConfig"`
-	StartTime string `json:"startTime"`
-}
-
-// CS2
-type Team struct {
-	Name string `json:"name"`
-}
-
-type PlayerDatHost struct {
-	Team      string `json:"team"`
-	SteamId64 string `json:"steam_id_64"`
-}
-type GameSettings struct {
-	Map                 string `json:"map"`
-	Password            string `json:"password"`
-	ConnectTime         int    `json:"connect_time"`
-	MatchBeginCountdown int    `json:"match_begin_countdown"`
-	EnableTechPause     bool   `json:"enable_tech_pause"`
-}
-type Webhooks struct {
-	MatchEndURL string `json:"match_end_url"`
-	RoundEndURL string `json:"round_end_url"`
-}
-type MatchRequestBodyCS2 struct {
-	Team1    Team            `json:"team1"`
-	Team2    Team            `json:"team2"`
-	Webhooks Webhooks        `json:"webhooks"`
-	Settings GameSettings    `json:"settings"`
-	Players  []PlayerDatHost `json:"players"`
-}
-
-func ScheduleMatch(url string, requestBody interface{}) error {
+func ScheduleMatch(url string, requestBody interface{}) (*io.ReadCloser, error) {
 	requestBodyBytes, err := json.Marshal(requestBody)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(requestBodyBytes))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	return nil
+	return &resp.Body, nil
 }
 
 func ScheduleDota2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
@@ -106,12 +66,7 @@ func ScheduleDota2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 	requestBody := MatchRequestBodyD2{
 		TeamA: teamA,
 		TeamB: teamB,
-		LobbyConfig: struct {
-			GameName     string `json:"gameName"`
-			ServerRegion int    `json:"serverRegion"`
-			PassKey      string `json:"passKey"`
-			GameMode     string `json:"gameMode"`
-		}{
+		LobbyConfig: LobbyConfig{
 			GameName:     "Relative Game Test",
 			ServerRegion: 3,
 			PassKey:      "test",
@@ -120,7 +75,7 @@ func ScheduleDota2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 		StartTime: "", // If sent as empty string, the match will be scheduled immediately
 	}
 
-	if err := ScheduleMatch(url, requestBody); err != nil {
+	if _, err := ScheduleMatch(url, requestBody); err != nil {
 		log.Println("Error making REST call:", err)
 		return
 	}
@@ -140,7 +95,6 @@ func ScheduleCS2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 		Players: []PlayerDatHost{},
 		Settings: GameSettings{
 			Map:                 "de_dust2",
-			Password:            "test",
 			ConnectTime:         120,
 			MatchBeginCountdown: 10,
 			EnableTechPause:     false,
@@ -164,9 +118,26 @@ func ScheduleCS2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 			SteamId64: ticket.Member,
 		})
 	}
-
-	if err := ScheduleMatch(url, requestBody); err != nil {
+	resp, err := ScheduleMatch(url, requestBody)
+	if err != nil {
 		log.Println("Error making REST call:", err)
 		return
+	}
+	defer (*resp).Close()
+
+	var matchResponse MatchResponseBodyCS2
+	if err := json.NewDecoder(*resp).Decode(&matchResponse); err != nil {
+		log.Println("Error decoding response:", err)
+		return
+	}
+
+	var message []byte
+	if message, err = json.Marshal(matchResponse); err != nil {
+		log.Println("Error marshalling message:", err)
+		return
+	}
+
+	for _, ticket := range append(tickets1, tickets2...) {
+		ws.SendMessageToUser(ticket.Member, message)
 	}
 }
