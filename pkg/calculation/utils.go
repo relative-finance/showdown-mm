@@ -45,11 +45,6 @@ func waitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 		log.Println("All players accepted: ", allAccepted)
 
 		if allAccepted {
-			ret := redis.RedisClient.Del(matchId)
-			if ret.Err() != nil {
-				log.Println("Error deleting match from redis: ", ret.Err())
-			}
-			log.Println("Ret", ret.Val())
 			ticker.Stop()
 			switch queue {
 			case constants.D2Queue:
@@ -57,11 +52,25 @@ func waitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 			case constants.CS2Queue:
 				utils.ScheduleCS2Match(tickets1, tickets2)
 			}
+			log.Println("Match scheduled")
+			disconnectAllUsers(matchId)
+			ret := redis.RedisClient.Del(matchId)
+			if ret.Err() != nil {
+				log.Println("Error deleting match from redis: ", ret.Err())
+			}
 			break
 		}
 	}
 
 	matchFailedReturnPlayersToMM(queue, matchId, false)
+}
+
+func disconnectAllUsers(matchId string) {
+	for _, redisPlayer := range redis.RedisClient.HGetAll(matchId).Val() {
+		matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
+		log.Println("Disconnecting user: ", matchPlayer.SteamId)
+		ws.DisconnectUser(matchPlayer.SteamId)
+	}
 }
 
 func matchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, denied bool) {
