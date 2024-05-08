@@ -5,7 +5,7 @@ services:
     container_name: redis-mmf
     networks:
       # - d2api_default
-      - mmf_network
+      - cs2-middleware_mmf_network
     ports:
       - "6378:6379"
     restart: always
@@ -18,7 +18,7 @@ services:
     env_file:
       - ../.env
     networks:
-      - mmf_network
+      - cs2-middleware_mmf_network
     ports:
       - "9876:9876"
     depends_on:
@@ -31,5 +31,5 @@ services:
           target: /app
 
 networks:
-  mmf_network:
+  cs2-middleware_mmf_network:
     driver: bridge
