@@ -14,6 +14,20 @@ $ cd ..
 $ go run /cmd/main.go
 ```
 
+## With Makefile
+
+```bash
+# Start everything
+$ make all
+
+# Start in development mode (with docker compose watch)
+$ make dev
+
+# Cleanup everything
+$ make stop
+
+```
+
 ## How to test websockets
 
 ```bash

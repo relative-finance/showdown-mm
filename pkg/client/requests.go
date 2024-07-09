@@ -1,4 +1,4 @@
-package utils
+package client
 
 type LobbyConfig struct {
 	GameName     string `json:"gameName"`

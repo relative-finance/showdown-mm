@@ -1,4 +1,4 @@
-package utils
+package client
 
 type MatchResponseBodyCS2 struct {
 	ConnectionString string  `json:"connection_string"`
