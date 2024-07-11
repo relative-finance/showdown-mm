@@ -35,7 +35,6 @@ func TestMain(m *testing.M) {
 var wsURL string
 
 func setup() {
-	// TODO: This should be read from test .env file
 	config := &config.Config{
 		Redis: config.RedisConfig{
 			Host:     "localhost",

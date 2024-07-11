@@ -31,6 +31,7 @@ type LichessResponse struct {
 	Percentile float64 `json:"percentile"`
 }
 
+// TODO: Change to get by API_KEY and not username
 func getGlicko(username, perf string) (LichessResponse, error) {
 
 	apiKey := os.Getenv("LICHESS_API_KEY")
