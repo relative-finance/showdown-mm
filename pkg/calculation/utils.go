@@ -51,6 +51,8 @@ func waitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 				client.ScheduleDota2Match(tickets1, tickets2)
 			case constants.CS2Queue:
 				client.ScheduleCS2Match(tickets1, tickets2)
+			case constants.LCQueue:
+				client.ScheduleLichessMatch(tickets1, tickets2) // TODO: Also send API_KEYS of users or include them in the tickets
 			}
 			log.Println("Match scheduled")
 			disconnectAllUsers(matchId)

@@ -11,7 +11,7 @@ DOCKER_COMPOSE_COMMAND := $(shell if command -v docker-compose >/dev/null 2>&1; 
 
 dev:
 	@echo "Running docker compose in watch mode..."
-	$(DOCKER_COMPOSE_COMMAND) -f $(COMPOSE_FILE) up --build
+	$(DOCKER_COMPOSE_COMMAND) -f $(COMPOSE_FILE) watch
 
 all:
 	@echo "Building and running docker compose in detached mode..."

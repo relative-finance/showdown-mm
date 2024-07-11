@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 )
 
 func ScheduleMatch(url string, requestBody interface{}) (*io.ReadCloser, error) {
@@ -140,4 +141,39 @@ func ScheduleCS2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 	for _, ticket := range append(tickets1, tickets2...) {
 		ws.SendMessageToUser(ticket.Member, message)
 	}
+}
+
+func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket) {
+	log.Println("Scheduling Lichess match")
+
+	if len(tickets1) == 0 || len(tickets2) == 0 {
+		log.Println("Insufficient players to schedule a match")
+		return
+	}
+
+	// Assuming the first ticket in each list represents the player for the match
+	player1 := tickets1[0].Member // steamId for player1
+	player2 := tickets2[0].Member // steamId for player2
+
+	url := os.Getenv("LICHESS_API") + "/v1/match"
+	requestBody := map[string]interface{}{
+		"player1": player1, // TODO: This needs to be changed to user API_KEY for the match to actualy be scheduled
+		"player2": player2,
+		"variant": "standard",
+		"clock": map[string]int{
+			"increment": 0,
+			"limit":     300,
+		},
+		"rules":         []string{},
+		"pairAt":        time.Now().Add(1 * time.Minute).UnixMilli(),
+		"rated":         false,
+		"startClocksAt": time.Now().Add(1 * time.Minute).UnixMilli(),
+		"webhook":       "https://webhook.com",
+	}
+
+	if _, err := ScheduleMatch(url, requestBody); err != nil {
+		log.Println("Error making REST call:", err)
+		return
+	}
+	log.Println("Lichess match scheduled successfully")
 }

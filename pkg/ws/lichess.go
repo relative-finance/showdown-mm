@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 )
@@ -67,6 +68,8 @@ func getGlicko(username, perf string) (LichessResponse, error) {
 	if err != nil {
 		return LichessResponse{}, fmt.Errorf("error parsing JSON response: %v", err)
 	}
+
+	log.Println("Elo from lichess for", username, "is", lr.Perf.Glicko.Rating, "with deviation", lr.Perf.Glicko.Deviation)
 
 	return lr, nil
 }

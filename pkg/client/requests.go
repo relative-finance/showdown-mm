@@ -41,3 +41,9 @@ type MatchRequestBodyCS2 struct {
 	Settings GameSettings    `json:"settings"`
 	Players  []PlayerDatHost `json:"players"`
 }
+
+// Lichess
+type MatchRequestBodyLichess struct {
+	TeamA Team `json:"team1"`
+	TeamB Team `json:"team2"`
+}
