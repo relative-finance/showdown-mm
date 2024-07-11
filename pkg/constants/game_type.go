@@ -5,6 +5,7 @@ type GameType string
 const (
 	CounterStrike2 GameType = "cs2"
 	Dota2          GameType = "dota2"
+	Lichess        GameType = "lc"
 )
 
 func (g *GameType) String() string {
