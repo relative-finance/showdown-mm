@@ -45,12 +45,12 @@ func StartWebSocket(game string, steamId string, c *gin.Context) {
 
 	switch game {
 	case "lcqueue":
-		lichessData, err := getGlicko(steamId, "classical") // TODO: Make it so that elo is fetched for correct game mode
+		rating, err := getGlicko(steamId, "blitz") // TODO: Make it so that elo is fetched for correct game mode
 		if err != nil {
 			log.Println("Error getting elo from lichess, using default elo 1500")
 			eloData = &model.EloData{Elo: 1500}
 		} else {
-			eloData = &model.EloData{Elo: lichessData.Perf.Glicko.Rating}
+			eloData = &model.EloData{Elo: float64(rating)}
 		}
 	default:
 		eloData = getDataFromRelay(steamId)
@@ -62,7 +62,7 @@ func StartWebSocket(game string, steamId string, c *gin.Context) {
 	for {
 		_, mess, err := conn.ReadMessage()
 		if err != nil {
-			log.Println(err)
+			return
 		}
 
 		var userResponse UserResponse

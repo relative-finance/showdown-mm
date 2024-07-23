@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 )
@@ -31,19 +30,34 @@ type LichessResponse struct {
 	Percentile float64 `json:"percentile"`
 }
 
-// TODO: Change to get by API_KEY and not username
-func getGlicko(username, perf string) (LichessResponse, error) {
+type Performance struct {
+	Games  int  `json:"games"`
+	Rating int  `json:"rating"`
+	RD     int  `json:"rd"`
+	Prog   int  `json:"prog"`
+	Prov   bool `json:"prov"`
+	Runs   int  `json:"runs,omitempty"`
+	Score  int  `json:"score,omitempty"`
+}
 
-	apiKey := os.Getenv("LICHESS_API_KEY")
+type LichessAccount struct {
+	Username string                 `json:"username"`
+	Perfs    map[string]Performance `json:"perfs"`
+}
+
+// TODO: Change to get by API_KEY and not username
+func getGlicko(username, perf string) (int, error) {
+
+	apiKey := username
 	if apiKey == "" {
-		return LichessResponse{}, fmt.Errorf("LICHESS_API_KEY not found in environment variables")
+		return 0, fmt.Errorf("LICHESS_API_KEY not found in environment variables")
 	}
 
-	url := fmt.Sprintf("https://lichess.org/api/user/%s/perf/%s", username, perf)
-
+	// url := fmt.Sprintf("https://lichess.org/api/user/%s/perf/%s", username, perf)
+	url := os.Getenv("LICHESS_BASE_URL") + "/api/account"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return LichessResponse{}, fmt.Errorf("error creating request: %v", err)
+		return 0, fmt.Errorf("error creating request: %v", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+apiKey)
@@ -51,26 +65,29 @@ func getGlicko(username, perf string) (LichessResponse, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return LichessResponse{}, fmt.Errorf("error performing request: %v", err)
+		return 0, fmt.Errorf("error performing request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return LichessResponse{}, fmt.Errorf("received non-OK response: %v", resp.Status)
+		return 0, fmt.Errorf("received non-OK response: %v", resp.Status)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return LichessResponse{}, fmt.Errorf("error reading response body: %v", err)
+		return 0, fmt.Errorf("error reading response body: %v", err)
 	}
 
-	var lr LichessResponse
+	var lr LichessAccount
 	err = json.Unmarshal(body, &lr)
 	if err != nil {
-		return LichessResponse{}, fmt.Errorf("error parsing JSON response: %v", err)
+		return 0, fmt.Errorf("error parsing JSON response: %v", err)
 	}
 
-	log.Println("Elo from lichess for", username, "is", lr.Perf.Glicko.Rating, "with deviation", lr.Perf.Glicko.Deviation)
+	prf, ok := lr.Perfs[perf]
+	if !ok {
+		return 0, fmt.Errorf("no performance data for %s", perf)
+	}
 
-	return lr, nil
+	return prf.Rating, nil
 }

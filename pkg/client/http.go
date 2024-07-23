@@ -155,20 +155,21 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 	player1 := tickets1[0].Member // steamId for player1
 	player2 := tickets2[0].Member // steamId for player2
 
-	url := os.Getenv("LICHESS_API") + "/v1/match"
-	requestBody := map[string]interface{}{
-		"player1": player1, // TODO: This needs to be changed to user API_KEY for the match to actualy be scheduled
-		"player2": player2,
-		"variant": "standard",
-		"clock": map[string]int{
-			"increment": 0,
-			"limit":     300,
+	url := os.Getenv("LICHESSAPI") + "/v1/match"
+
+	requestBody := CreateLichessMatchRequest{
+		Player1: player1,
+		Player2: player2,
+		Variant: Standard,
+		Clock: Clock{
+			Increment: 0,
+			Limit:     300,
 		},
-		"rules":         []string{},
-		"pairAt":        time.Now().Add(1 * time.Minute).UnixMilli(),
-		"rated":         false,
-		"startClocksAt": time.Now().Add(1 * time.Minute).UnixMilli(),
-		"webhook":       "https://webhook.com",
+		Rated:         false,
+		Rules:         []Rules{},
+		PairAt:        int(time.Now().Add(1 * time.Minute).UnixMilli()),
+		StartClocksAt: int(time.Now().Add(6 * time.Minute).UnixMilli()),
+		Webhook:       "",
 	}
 
 	if _, err := ScheduleMatch(url, requestBody); err != nil {
