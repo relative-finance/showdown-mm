@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"log"
 	"math"
+	"mmf/pkg/client"
 	"mmf/pkg/constants"
 	"mmf/pkg/model"
 	"mmf/pkg/redis"
-	"mmf/pkg/utils"
 	"mmf/pkg/ws"
 	"strconv"
 	"time"
@@ -48,9 +48,11 @@ func waitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 			ticker.Stop()
 			switch queue {
 			case constants.D2Queue:
-				utils.ScheduleDota2Match(tickets1, tickets2)
+				client.ScheduleDota2Match(tickets1, tickets2)
 			case constants.CS2Queue:
-				utils.ScheduleCS2Match(tickets1, tickets2)
+				client.ScheduleCS2Match(tickets1, tickets2)
+			case constants.LCQueue:
+				client.ScheduleLichessMatch(tickets1, tickets2)
 			}
 			log.Println("Match scheduled")
 			disconnectAllUsers(matchId)

@@ -7,7 +7,6 @@ import (
 	"mmf/pkg/redis"
 	"mmf/wires"
 	"net/http"
-	"os"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -42,15 +41,28 @@ func StartWebSocket(game string, steamId string, c *gin.Context) {
 		delete(userConnections, steamId)
 		userConnectionsMutex.Unlock()
 	}()
+	var eloData *model.EloData
 
-	eloData := getDataFromRelay(steamId)
+	switch game {
+	case "lcqueue":
+		rating, err := getGlicko(steamId, "blitz") // TODO: Make it so that elo is fetched for correct game mode
+		if err != nil {
+			log.Println("Error getting elo from lichess, using default elo 1500")
+			eloData = &model.EloData{Elo: 1500}
+		} else {
+			eloData = &model.EloData{Elo: float64(rating)}
+		}
+	default:
+		eloData = getDataFromRelay(steamId)
+	}
+
 	wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{SteamID: steamId, Elo: eloData.Elo}, game)
 
 	conn.WriteMessage(websocket.TextMessage, []byte("Hello, "+steamId))
 	for {
 		_, mess, err := conn.ReadMessage()
 		if err != nil {
-			log.Println(err)
+			return
 		}
 
 		var userResponse UserResponse
@@ -65,27 +77,4 @@ func StartWebSocket(game string, steamId string, c *gin.Context) {
 		matchPlayer.Option = userResponse.Option
 		redis.RedisClient.HSet(userResponse.MatchId, steamId, matchPlayer.Marshal())
 	}
-}
-
-func getDataFromRelay(steamId string) *model.EloData {
-	relayAddress := os.Getenv("RELAY_ADDRESS")
-	resp, err := http.Get(relayAddress + "/statistics/elo/" + steamId)
-	if err != nil {
-		log.Println("Error getting elo from relay")
-		return &model.EloData{Elo: 1500}
-	}
-	if resp.StatusCode != 200 {
-		log.Println("Error getting elo from relay")
-		return &model.EloData{Elo: 1500}
-	}
-
-	var eloData model.EloData
-
-	defer resp.Body.Close()
-	err = json.NewDecoder(resp.Body).Decode(&eloData)
-	if err != nil {
-		log.Println("Error decoding elo data")
-		return &model.EloData{Elo: 1500}
-	}
-	return &eloData
 }

@@ -5,6 +5,7 @@ type QueueType string
 const (
 	CS2Queue QueueType = "cs2queue"
 	D2Queue  QueueType = "d2queue"
+	LCQueue  QueueType = "lcqueue"
 )
 
 func GetQueueType(queue string) QueueType {
@@ -13,6 +14,8 @@ func GetQueueType(queue string) QueueType {
 		return CS2Queue
 	case "d2queue":
 		return D2Queue
+	case "lcqueue":
+		return LCQueue
 	default:
 		return ""
 	}
@@ -23,7 +26,7 @@ func (g *QueueType) String() string {
 }
 
 func GetAllQueueTypes() []QueueType {
-	return []QueueType{CS2Queue, D2Queue}
+	return []QueueType{CS2Queue, D2Queue, LCQueue}
 }
 
 func GetIndexNameQueue(queue QueueType) string {
