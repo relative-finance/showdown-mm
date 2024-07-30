@@ -7,7 +7,7 @@ import (
 	"mmf/internal/constants"
 	"mmf/internal/model"
 	"mmf/internal/redis"
-	"mmf/internal/ws"
+	ws "mmf/internal/websocket"
 	"mmf/pkg/client"
 	"strconv"
 	"time"

@@ -3,8 +3,8 @@ package api
 import (
 	"context"
 
+	ws "mmf/internal/websocket"
 	"mmf/internal/wires"
-	"mmf/internal/ws"
 
 	"github.com/gin-gonic/gin"
 )
