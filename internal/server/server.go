@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"mmf/config"
-	"mmf/pkg/crawler"
-	"mmf/pkg/redis"
-	"mmf/pkg/server/api"
-	"mmf/wires"
+	"mmf/internal/crawler"
+	"mmf/internal/redis"
+	"mmf/internal/server/api"
+	"mmf/internal/wires"
 
 	"github.com/gin-gonic/gin"
 )

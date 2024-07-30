@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"mmf/pkg/model"
-	"mmf/pkg/ws"
+	"mmf/internal/model"
+	"mmf/internal/ws"
+
 	"net/http"
 	"os"
 	"strconv"

@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"mmf/config"
-	"mmf/pkg/redis"
-	"mmf/pkg/server"
+	"mmf/internal/redis"
+	"mmf/internal/server"
 )
 
 func main() {

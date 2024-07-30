@@ -3,7 +3,7 @@ package ws
 import (
 	"encoding/json"
 	"log"
-	"mmf/pkg/model"
+	"mmf/internal/model"
 	"net/http"
 	"os"
 )

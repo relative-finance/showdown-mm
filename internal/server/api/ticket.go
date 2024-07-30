@@ -3,8 +3,8 @@ package api
 import (
 	"context"
 
-	"mmf/pkg/ws"
-	"mmf/wires"
+	"mmf/internal/wires"
+	"mmf/internal/ws"
 
 	"github.com/gin-gonic/gin"
 )
