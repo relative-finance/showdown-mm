@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"mmf/config"
-	"mmf/internal/crawler"
 	"mmf/internal/redis"
+	"mmf/internal/redis/crawler"
 	"mmf/internal/server/api"
 	"mmf/internal/wires"
 
