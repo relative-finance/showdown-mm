@@ -52,7 +52,7 @@ func waitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 			case constants.CS2Queue:
 				client.ScheduleCS2Match(tickets1, tickets2)
 			case constants.LCQueue:
-				client.ScheduleLichessMatch(tickets1, tickets2)
+				client.ScheduleLichessMatch(tickets1, tickets2, matchId)
 			}
 			log.Println("Match scheduled")
 			disconnectAllUsers(matchId)
