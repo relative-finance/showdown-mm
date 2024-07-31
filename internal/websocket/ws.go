@@ -3,9 +3,9 @@ package ws
 import (
 	"encoding/json"
 	"log"
-	"mmf/pkg/model"
-	"mmf/pkg/redis"
-	"mmf/wires"
+	"mmf/internal/model"
+	"mmf/internal/redis"
+	"mmf/internal/wires"
 	"net/http"
 	"sync"
 

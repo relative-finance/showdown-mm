@@ -1,9 +1,9 @@
 package calculation
 
 import (
-	"mmf/pkg/constants"
-	"mmf/pkg/model"
-	"mmf/pkg/redis"
+	"mmf/internal/constants"
+	"mmf/internal/model"
+	"mmf/internal/redis"
 )
 
 func addMatchToRedis(matchId string, tickets1 []model.Ticket, tickets2 []model.Ticket, queue constants.QueueType) {

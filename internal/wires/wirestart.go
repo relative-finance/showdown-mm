@@ -2,8 +2,8 @@ package wires
 
 import (
 	"mmf/config"
-	"mmf/pkg/redis"
-	"mmf/pkg/services"
+	"mmf/internal/redis"
+	"mmf/internal/services"
 )
 
 type Wires struct {

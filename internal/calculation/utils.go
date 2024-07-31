@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"log"
 	"math"
+	"mmf/internal/constants"
+	"mmf/internal/model"
+	"mmf/internal/redis"
+	ws "mmf/internal/websocket"
 	"mmf/pkg/client"
-	"mmf/pkg/constants"
-	"mmf/pkg/model"
-	"mmf/pkg/redis"
-	"mmf/pkg/ws"
 	"strconv"
 	"time"
 
@@ -52,7 +52,7 @@ func waitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 			case constants.CS2Queue:
 				client.ScheduleCS2Match(tickets1, tickets2)
 			case constants.LCQueue:
-				client.ScheduleLichessMatch(tickets1, tickets2)
+				client.ScheduleLichessMatch(tickets1, tickets2, matchId)
 			}
 			log.Println("Match scheduled")
 			disconnectAllUsers(matchId)

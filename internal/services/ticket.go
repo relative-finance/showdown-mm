@@ -3,8 +3,8 @@ package services
 import (
 	"log"
 	"mmf/config"
-	"mmf/pkg/constants"
-	"mmf/pkg/model"
+	"mmf/internal/constants"
+	"mmf/internal/model"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"

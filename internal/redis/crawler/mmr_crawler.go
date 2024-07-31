@@ -2,8 +2,8 @@ package crawler
 
 import (
 	"mmf/config"
-	"mmf/pkg/calculation"
-	"mmf/pkg/constants"
+	"mmf/internal/calculation"
+	"mmf/internal/constants"
 )
 
 func StartCrawler(config config.MMRConfig) bool {

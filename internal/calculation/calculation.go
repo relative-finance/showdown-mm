@@ -2,10 +2,10 @@ package calculation
 
 import (
 	"mmf/config"
-	"mmf/pkg/constants"
-	"mmf/pkg/model"
-	"mmf/pkg/redis"
-	"mmf/pkg/ws"
+	"mmf/internal/constants"
+	"mmf/internal/model"
+	"mmf/internal/redis"
+	ws "mmf/internal/websocket"
 	"strconv"
 	"time"
 )
