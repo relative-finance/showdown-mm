@@ -6,6 +6,7 @@ import (
 	"mmf/internal/model"
 	"mmf/internal/redis"
 	"mmf/internal/wires"
+	"mmf/pkg/external"
 	"net/http"
 	"sync"
 
@@ -45,7 +46,7 @@ func StartWebSocket(game string, steamId string, c *gin.Context) {
 
 	switch game {
 	case "lcqueue":
-		rating, err := getGlicko(steamId, "blitz") // TODO: Make it so that elo is fetched for correct game mode
+		rating, err := external.GetGlicko(steamId, "blitz") // TODO: Make it so that elo is fetched for correct game mode
 		if err != nil {
 			log.Println("Error getting elo from lichess, using default elo 1500")
 			eloData = &model.EloData{Elo: 1500}
@@ -53,7 +54,7 @@ func StartWebSocket(game string, steamId string, c *gin.Context) {
 			eloData = &model.EloData{Elo: float64(rating)}
 		}
 	default:
-		eloData = GetDataFromRelay(steamId)
+		eloData = external.GetDataFromRelay(steamId)
 	}
 
 	wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{SteamID: steamId, Elo: eloData.Elo}, game)
