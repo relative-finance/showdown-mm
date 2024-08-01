@@ -7,7 +7,11 @@ endif
 # Run docker compose, if it doesn't exist run docker-compose insted
 DOCKER_COMPOSE_COMMAND := $(shell if command -v docker-compose >/dev/null 2>&1; then echo docker-compose; else echo docker compose; fi)
 
-.PHONY: dev all
+.PHONY: dev-lite dev all stop
+
+dev-lite:
+	@echo "Running background services in docker"
+	$(DOCKER_COMPOSE_COMMAND) -f $(COMPOSE_FILE) up redis -d
 
 dev:
 	@echo "Running docker compose in watch mode..."
