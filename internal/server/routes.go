@@ -1,11 +1,12 @@
-package api
+package server
 
 import (
 	"context"
+	"mmf/internal/server/handlers"
 
 	"github.com/gin-gonic/gin"
 )
 
 func RegisterVersion(router *gin.Engine, ctx context.Context) {
-	RegisterTicket(router, ctx)
+	handlers.RegisterTicket(router, ctx)
 }

@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-func getDataFromRelay(steamId string) *model.EloData {
+func GetDataFromRelay(steamId string) *model.EloData {
 	relayAddress := os.Getenv("RELAY_ADDRESS")
 	resp, err := http.Get(relayAddress + "/statistics/elo/" + steamId)
 	if err != nil {

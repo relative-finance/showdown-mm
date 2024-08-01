@@ -7,7 +7,7 @@ import (
 	"io"
 	"log"
 	"mmf/internal/model"
-	ws "mmf/internal/websocket"
+	ws "mmf/internal/server/websockets"
 
 	"net/http"
 	"os"

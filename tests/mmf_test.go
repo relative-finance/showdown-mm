@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"mmf/config"
-	"mmf/pkg/model"
-	"mmf/pkg/redis"
-	"mmf/pkg/server"
-	"mmf/pkg/server/api"
-	"mmf/pkg/ws"
-	"mmf/wires"
+	"mmf/internal/model"
+	"mmf/internal/redis"
+	"mmf/internal/server"
+	ws "mmf/internal/server/websockets"
+	"mmf/internal/wires"
+
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -56,7 +56,7 @@ func setup() {
 	wires.Init(config)
 
 	r := gin.Default()
-	api.RegisterVersion(r, context.Background())
+	server.RegisterVersion(r, context.Background())
 
 	testServer = httptest.NewServer(r)
 	wsURL = strings.Replace(testServer.URL, "http", "ws", 1) + "/ws"

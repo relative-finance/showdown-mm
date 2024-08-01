@@ -1,4 +1,4 @@
-package calculation
+package utils
 
 import (
 	"mmf/internal/constants"
@@ -6,7 +6,7 @@ import (
 	"mmf/internal/redis"
 )
 
-func addMatchToRedis(matchId string, tickets1 []model.Ticket, tickets2 []model.Ticket, queue constants.QueueType) {
+func AddMatchToRedis(matchId string, tickets1 []model.Ticket, tickets2 []model.Ticket, queue constants.QueueType) {
 	for _, ticket := range tickets1 {
 		redis.RedisClient.ZRem(constants.GetIndexNameQueue(queue), ticket.Member)
 	}

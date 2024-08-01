@@ -53,7 +53,7 @@ func StartWebSocket(game string, steamId string, c *gin.Context) {
 			eloData = &model.EloData{Elo: float64(rating)}
 		}
 	default:
-		eloData = getDataFromRelay(steamId)
+		eloData = GetDataFromRelay(steamId)
 	}
 
 	wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{SteamID: steamId, Elo: eloData.Elo}, game)

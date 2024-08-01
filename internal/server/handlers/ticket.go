@@ -1,9 +1,9 @@
-package api
+package handlers
 
 import (
 	"context"
 
-	ws "mmf/internal/websocket"
+	ws "mmf/internal/server/websockets"
 	"mmf/internal/wires"
 
 	"github.com/gin-gonic/gin"
