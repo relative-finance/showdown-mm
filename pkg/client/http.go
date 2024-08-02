@@ -8,6 +8,7 @@ import (
 	"log"
 	"mmf/internal/model"
 	ws "mmf/internal/server/websockets"
+	"mmf/pkg/external"
 
 	"net/http"
 	"os"
@@ -121,6 +122,7 @@ func ScheduleCS2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 			SteamId64: ticket.Member,
 		})
 	}
+
 	resp, err := ScheduleMatch(url, requestBody)
 	if err != nil {
 		log.Println("Error making REST call:", err)
@@ -153,6 +155,55 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 		return
 	}
 
+	// Sending team data to players - needs pulling username
+	type Teams struct {
+		YourTeam []string `json:"your_team"`
+		Opponent []string `json:"opponent"`
+	}
+
+	var ticket1team, tickets2team Teams
+	for _, ticket := range tickets1 {
+		username, err := external.GetLichessUsername(ticket.Member)
+		if err != nil {
+			log.Println("Error getting lichess username:", err)
+			continue
+		}
+
+		ticket1team.YourTeam = append(ticket1team.YourTeam, username)
+		tickets2team.Opponent = append(tickets2team.Opponent, username)
+	}
+
+	for _, ticket := range tickets2 {
+		username, err := external.GetLichessUsername(ticket.Member)
+		if err != nil {
+			log.Println("Error getting lichess username:", err)
+			continue
+		}
+
+		ticket1team.Opponent = append(ticket1team.Opponent, username)
+		tickets2team.YourTeam = append(tickets2team.YourTeam, username)
+	}
+
+	team1Data, err := json.Marshal(ticket1team)
+	if err != nil {
+		log.Println("Error marshalling team1 data:", err)
+		return
+	}
+
+	team2Data, err := json.Marshal(tickets2team)
+	if err != nil {
+		log.Println("Error marshalling team2 data:", err)
+		return
+	}
+
+	for _, ticket := range tickets1 {
+		ws.SendMessageToUser(ticket.Member, team1Data)
+	}
+
+	for _, ticket := range tickets2 {
+		ws.SendMessageToUser(ticket.Member, team2Data)
+	}
+
 	// Assuming the first ticket in each list represents the player for the match
 	player1 := tickets1[0].Member // steamId for player1
 	player2 := tickets2[0].Member // steamId for player2
@@ -174,9 +225,32 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 		Webhook:       fmt.Sprint(os.Getenv("WEBHOOK_ENDPOINT"), "/", matchId),
 	}
 
-	if _, err := ScheduleMatch(url, requestBody); err != nil {
+	type LichessId struct {
+		Id string `json:"id"`
+	}
+
+	body, err := ScheduleMatch(url, requestBody)
+	if err != nil {
 		log.Println("Error making REST call:", err)
 		return
 	}
+
+	var lichessId LichessId
+	if err := json.NewDecoder(*body).Decode(&lichessId); err != nil {
+		log.Println("Error decoding response:", err)
+		return
+	}
+
+	jsonId, err := json.Marshal(lichessId)
+	if err != nil {
+		log.Println("Error marshalling lichess id:", err)
+		return
+	}
+
+	// Send lichess id to players
+	for _, ticket := range append(tickets1, tickets2...) {
+		ws.SendMessageToUser(ticket.Member, jsonId)
+	}
+
 	log.Println("Lichess match scheduled successfully")
 }
