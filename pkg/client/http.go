@@ -158,7 +158,7 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 	// Sending team data to players - needs pulling username
 	type Teams struct {
 		YourTeam []string `json:"your_team"`
-		Opponent []string `json:"opponent"`
+		Opponent []string `json:"opponent_team"`
 	}
 
 	var ticket1team, tickets2team Teams

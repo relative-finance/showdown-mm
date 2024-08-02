@@ -9,7 +9,7 @@ import (
 )
 
 func SendMatchFoundToPlayers(matchId string, matchTickets []model.Ticket) bool {
-	mess := MatchFoundResponse{MatchId: matchId}
+	mess := GenerateMatchFoundResponse(matchTickets, matchId)
 	marshalled, err := json.Marshal(mess)
 	if err != nil {
 		return false
