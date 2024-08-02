@@ -9,7 +9,6 @@ import (
 	"mmf/config"
 	"mmf/internal/redis"
 	"mmf/internal/redis/crawler"
-	"mmf/internal/server/api"
 	"mmf/internal/wires"
 
 	"github.com/gin-gonic/gin"
@@ -37,7 +36,7 @@ func (server *Server) Start() {
 	// Recovery middleware recovers from any panics and writes a 500 if there was one.
 	r.Use(gin.Recovery())
 
-	api.RegisterVersion(r, context.Background())
+	RegisterVersion(r, context.Background())
 
 	err := r.Run(":" + server.config.Server.Port)
 

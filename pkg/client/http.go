@@ -7,7 +7,7 @@ import (
 	"io"
 	"log"
 	"mmf/internal/model"
-	ws "mmf/internal/websocket"
+	ws "mmf/internal/server/websockets"
 
 	"net/http"
 	"os"
@@ -33,7 +33,8 @@ func ScheduleMatch(url string, requestBody interface{}) (*io.ReadCloser, error) 
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		err, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected status code: %d, with error: %s", resp.StatusCode, string(err))
 	}
 
 	return &resp.Body, nil

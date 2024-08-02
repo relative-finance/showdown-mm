@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"mmf/pkg/ws"
+	ws "mmf/internal/server/websockets"
 	"net/http"
 	"strings"
 
