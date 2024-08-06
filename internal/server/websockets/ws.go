@@ -26,7 +26,7 @@ var upgrader = websocket.Upgrader{
 }
 
 type ShowdownApiResponse struct {
-	Key string `json:"key"`
+	Token string `json:"lichessToken"`
 }
 
 // Map for user connection
@@ -37,7 +37,7 @@ func usernameToKey(username string) (*string, error) {
 	showdownApi := os.Getenv("SHOWDOWN_API")
 	showdownKey := os.Getenv("SHOWDOWN_API_KEY")
 
-	url := fmt.Sprintf("%s/get_liches_token?userID=%s", showdownApi, username)
+	url := fmt.Sprintf("%s/get_lichess_token?userID=%s", showdownApi, username)
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -64,14 +64,14 @@ func usernameToKey(username string) (*string, error) {
 		return nil, err
 	}
 
-	var apiResponse *ShowdownApiResponse
-	err = json.Unmarshal(body, apiResponse)
+	var apiResponse ShowdownApiResponse
+	err = json.Unmarshal(body, &apiResponse)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &apiResponse.Key, nil
+	return &apiResponse.Token, nil
 }
 
 func StartWebSocket(game string, steamId string, c *gin.Context) {
@@ -98,9 +98,11 @@ func StartWebSocket(game string, steamId string, c *gin.Context) {
 		// by calling showdown-api example: "http://65.1.107.225:81/get_lichess_token?userID=tkumar994"
 
 		apiKey, err := usernameToKey(steamId)
-
+		log.Print("HVATAM KLJUC")
+		log.Print("LICHESS KLJUC ", apiKey)
 		if err != nil {
-			log.Println("Error getting token from showdown api")
+			log.Println("Error getting token from showdown api ")
+			log.Println(err.Error())
 			return
 		}
 
