@@ -9,7 +9,3 @@ type MatchId struct {
 	Id           string `json:"id"`
 	GameServerId string `json:"game_server_id"`
 }
-
-type ShowdownApiResponse struct {
-	Key string `json:"key"`
-}

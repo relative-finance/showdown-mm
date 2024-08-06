@@ -8,7 +8,6 @@ import (
 	"mmf/internal/model"
 	"mmf/internal/redis"
 	"mmf/internal/wires"
-	client2 "mmf/pkg/client"
 	"mmf/pkg/external"
 	"net/http"
 	"os"
@@ -24,6 +23,10 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
+}
+
+type ShowdownApiResponse struct {
+	Key string `json:"key"`
 }
 
 // Map for user connection
@@ -61,7 +64,7 @@ func usernameToKey(username string) (*string, error) {
 		return nil, err
 	}
 
-	var apiResponse *client2.ShowdownApiResponse
+	var apiResponse *ShowdownApiResponse
 	err = json.Unmarshal(body, apiResponse)
 
 	if err != nil {
