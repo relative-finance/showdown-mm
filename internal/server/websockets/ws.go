@@ -2,12 +2,16 @@ package ws
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"mmf/internal/model"
 	"mmf/internal/redis"
 	"mmf/internal/wires"
+	client2 "mmf/pkg/client"
 	"mmf/pkg/external"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +29,47 @@ var upgrader = websocket.Upgrader{
 // Map for user connection
 var userConnections = make(map[string]*websocket.Conn)
 var userConnectionsMutex sync.Mutex
+
+func usernameToKey(username string) (*string, error) {
+	showdownApi := os.Getenv("SHOWDOWN_API")
+	showdownKey := os.Getenv("SHOWDOWN_API_KEY")
+
+	url := fmt.Sprintf("%s/get_liches_token?userID=%s", showdownApi, username)
+	client := &http.Client{}
+
+	req, err := http.NewRequest("GET", url, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("X-Api-Key", showdownKey)
+
+	resp, err := client.Do(req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Unexpected status code: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var apiResponse *client2.ShowdownApiResponse
+	err = json.Unmarshal(body, apiResponse)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &apiResponse.Key, nil
+}
 
 func StartWebSocket(game string, steamId string, c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -49,7 +94,14 @@ func StartWebSocket(game string, steamId string, c *gin.Context) {
 		// TODO: Write a func that converts steamId (which is lichess username) to API_KEY
 		// by calling showdown-api example: "http://65.1.107.225:81/get_lichess_token?userID=tkumar994"
 
-		rating, err := external.GetGlicko(steamId, "blitz") // TODO: Make it so that elo is fetched for correct game mode
+		apiKey, err := usernameToKey(steamId)
+
+		if err != nil {
+			log.Println("Error getting token from showdown api")
+			return
+		}
+
+		rating, err := external.GetGlicko(*apiKey, "blitz") // TODO: Make it so that elo is fetched for correct game mode
 		if err != nil {
 			log.Println("Error getting elo from lichess, using default elo 1500")
 			eloData = &model.EloData{Elo: 1500}
