@@ -94,12 +94,8 @@ func StartWebSocket(game string, steamId string, c *gin.Context) {
 
 	switch game {
 	case "lcqueue":
-		// TODO: Write a func that converts steamId (which is lichess username) to API_KEY
-		// by calling showdown-api example: "http://65.1.107.225:81/get_lichess_token?userID=tkumar994"
-
 		apiKey, err := usernameToKey(steamId)
-		log.Print("HVATAM KLJUC")
-		log.Print("LICHESS KLJUC ", apiKey)
+
 		if err != nil {
 			log.Println("Error getting token from showdown api ")
 			log.Println(err.Error())
