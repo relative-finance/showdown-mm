@@ -24,11 +24,11 @@ services:
     depends_on:
       - redis
     command: go run ./cmd/main.go
-    develop:
-      watch:
-        - action: sync+restart
-          path: ../
-          target: /app
+#    develop:
+#      watch:
+#        - action: sync+restart
+#          path: ../
+#          target: /app
 
 networks:
   cs2-middleware_mmf_network:
