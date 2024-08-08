@@ -51,6 +51,7 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 				client.ScheduleLichessMatch(tickets1, tickets2, matchId)
 			}
 			log.Println("Match scheduled")
+
 			DisconnectAllUsers(matchId)
 			ret := redis.RedisClient.Del(matchId)
 			if ret.Err() != nil {

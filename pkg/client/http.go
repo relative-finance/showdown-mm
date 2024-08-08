@@ -47,7 +47,7 @@ func ScheduleDota2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 	// map tickets1 to TeamA
 	teamA := []int64{}
 	for _, ticket := range tickets1 {
-		player, err := strconv.ParseInt(ticket.Member, 10, 64)
+		player, err := strconv.ParseInt(ticket.Member.SteamID, 10, 64)
 		if err != nil {
 			log.Println("Error parsing ticket member:", err)
 			return
@@ -58,7 +58,7 @@ func ScheduleDota2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 
 	teamB := []int64{}
 	for _, ticket := range tickets2 {
-		player, err := strconv.ParseInt(ticket.Member, 10, 64)
+		player, err := strconv.ParseInt(ticket.Member.SteamID, 10, 64)
 		if err != nil {
 			log.Println("Error parsing ticket member:", err)
 			return
@@ -112,14 +112,14 @@ func ScheduleCS2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 	for _, ticket := range tickets1 {
 		requestBody.Players = append(requestBody.Players, PlayerDatHost{
 			Team:      "team1",
-			SteamId64: ticket.Member,
+			SteamId64: ticket.Member.SteamID,
 		})
 	}
 
 	for _, ticket := range tickets2 {
 		requestBody.Players = append(requestBody.Players, PlayerDatHost{
 			Team:      "team2",
-			SteamId64: ticket.Member,
+			SteamId64: ticket.Member.SteamID,
 		})
 	}
 
@@ -143,7 +143,7 @@ func ScheduleCS2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 	}
 
 	for _, ticket := range append(tickets1, tickets2...) {
-		ws.SendMessageToUser(ticket.Member, message)
+		ws.SendMessageToUser(ticket.Member.SteamID, message)
 	}
 }
 
@@ -163,7 +163,7 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 
 	var ticket1team, tickets2team Teams
 	for _, ticket := range tickets1 {
-		username, err := external.GetLichessUsername(ticket.Member)
+		username, err := external.GetLichessUsername(ticket.Member.SteamID)
 		if err != nil {
 			log.Println("Error getting lichess username:", err)
 			continue
@@ -174,7 +174,7 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 	}
 
 	for _, ticket := range tickets2 {
-		username, err := external.GetLichessUsername(ticket.Member)
+		username, err := external.GetLichessUsername(ticket.Member.SteamID)
 		if err != nil {
 			log.Println("Error getting lichess username:", err)
 			continue
@@ -197,16 +197,16 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 	}
 
 	for _, ticket := range tickets1 {
-		ws.SendMessageToUser(ticket.Member, team1Data)
+		ws.SendMessageToUser(ticket.Member.SteamID, team1Data)
 	}
 
 	for _, ticket := range tickets2 {
-		ws.SendMessageToUser(ticket.Member, team2Data)
+		ws.SendMessageToUser(ticket.Member.SteamID, team2Data)
 	}
 
 	// Assuming the first ticket in each list represents the player for the match
-	player1 := tickets1[0].Member // steamId for player1
-	player2 := tickets2[0].Member // steamId for player2
+	player1 := tickets1[0].Member.SteamID // steamId for player1
+	player2 := tickets2[0].Member.SteamID // steamId for player2
 
 	url := os.Getenv("LICHESSAPI") + "/v1/match"
 
@@ -249,7 +249,7 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 
 	// Send lichess id to players
 	for _, ticket := range append(tickets1, tickets2...) {
-		ws.SendMessageToUser(ticket.Member, jsonId)
+		ws.SendMessageToUser(ticket.Member.SteamID, jsonId)
 	}
 
 	log.Println("Lichess match scheduled successfully")

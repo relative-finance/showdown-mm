@@ -16,7 +16,7 @@ func SendMatchFoundToPlayers(matchId string, matchTickets []model.Ticket) bool {
 	}
 
 	for _, ticket := range matchTickets {
-		SendMessageToUser(ticket.Member, marshalled)
+		SendMessageToUser(ticket.Member.SteamID, marshalled)
 	}
 	return true
 }

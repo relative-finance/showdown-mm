@@ -16,7 +16,14 @@ type TicketServiceImpl struct {
 }
 
 func (s *TicketServiceImpl) SubmitTicket(g *gin.Context, submitTicketRequest model.SubmitTicketRequest, queue string) error {
-	s.Redis.ZAdd(constants.GetIndexNameStr(queue), redis.Z{Score: float64(submitTicketRequest.Elo), Member: submitTicketRequest.SteamID})
+	resp := s.Redis.ZAdd(constants.GetIndexNameStr(queue), redis.Z{Score: float64(submitTicketRequest.Elo), Member: &model.MemberData{
+		WalletAddress: submitTicketRequest.WalletAddress,
+		SteamID:       submitTicketRequest.SteamID,
+	}})
+
+	log.Print("services/ticket.go")
+	log.Print(resp.Err())
+
 	return nil
 }
 
@@ -28,7 +35,7 @@ func (s *TicketServiceImpl) GetAllTickets(g *gin.Context, queue string) []model.
 	}
 	var gameTickets []model.Ticket
 	for _, ticket := range tickets.Val() {
-		gameTickets = append(gameTickets, model.Ticket{Member: ticket.Member.(string), Score: ticket.Score})
+		gameTickets = append(gameTickets, model.Ticket{Member: ticket.Member.(model.MemberData), Score: ticket.Score})
 	}
 	return gameTickets
 }

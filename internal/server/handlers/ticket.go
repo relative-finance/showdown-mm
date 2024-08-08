@@ -16,15 +16,16 @@ func RegisterTicket(router *gin.Engine, ctx context.Context) {
 		tickets.GET("/fetch/:queue", fetchTickets)
 	}
 
-	router.GET("/ws/:queue/:steamId", wsGet)
+	router.GET("/ws/:queue/:steamId/:walletAddress", wsGet)
 
 }
 
 func wsGet(c *gin.Context) {
 	queue := c.Param("queue")
 	steamId := c.Param("steamId")
+	walletAddress := c.Param("walletAddress")
 
-	ws.StartWebSocket(queue, steamId, c)
+	ws.StartWebSocket(queue, steamId, walletAddress, c)
 }
 
 func fetchTickets(c *gin.Context) {

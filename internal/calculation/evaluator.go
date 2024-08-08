@@ -1,6 +1,8 @@
 package calculation
 
 import (
+	"encoding/json"
+	"log"
 	"mmf/config"
 	"mmf/internal/constants"
 	"mmf/internal/model"
@@ -14,13 +16,22 @@ import (
 func EvaluateTickets(config config.MMRConfig, queue constants.QueueType) bool {
 	var gameTickets []model.Ticket
 	tickets := redis.RedisClient.ZRangeWithScores(constants.GetIndexNameQueue(queue), 0, -1)
-
+	log.Print(tickets)
 	if len(tickets.Val()) < config.TeamSize*2 {
 		return false
 	}
 
 	for _, ticket := range tickets.Val() {
-		gameTickets = append(gameTickets, model.Ticket{Member: ticket.Member.(string), Score: ticket.Score})
+		var memberData model.MemberData
+		memberRaw := ticket.Member.(string)
+
+		err := json.Unmarshal([]byte(memberRaw), &memberData)
+
+		if err != nil {
+			return false
+		}
+
+		gameTickets = append(gameTickets, model.Ticket{Member: memberData, Score: ticket.Score})
 	}
 
 	for i := 0; i < len(gameTickets); i++ {
