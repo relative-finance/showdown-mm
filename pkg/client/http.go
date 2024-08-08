@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -147,12 +148,20 @@ func ScheduleCS2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 	}
 }
 
-func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matchId string) {
+type CreateLichessMatchShowdownRequest struct {
+	MatchID       string `json:"match_id"`
+	Player1ID     string `json:"player1_lichess_id"`
+	Player2ID     string `json:"player2_lichess_id"`
+	Player1Wallet string `json:"player1_wallet_address"`
+	Player2Wallet string `json:"player2_wallet_address"`
+}
+
+func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matchId string) (*CreateLichessMatchRequest, error) {
 	log.Println("Scheduling Lichess match")
 
 	if len(tickets1) == 0 || len(tickets2) == 0 {
 		log.Println("Insufficient players to schedule a match")
-		return
+		return nil, errors.New("Insufficient players to schedule a match")
 	}
 
 	// Sending team data to players - needs pulling username
@@ -187,13 +196,13 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 	team1Data, err := json.Marshal(ticket1team)
 	if err != nil {
 		log.Println("Error marshalling team1 data:", err)
-		return
+		return nil, err
 	}
 
 	team2Data, err := json.Marshal(tickets2team)
 	if err != nil {
 		log.Println("Error marshalling team2 data:", err)
-		return
+		return nil, err
 	}
 
 	for _, ticket := range tickets1 {
@@ -207,6 +216,9 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 	// Assuming the first ticket in each list represents the player for the match
 	player1 := tickets1[0].Member.SteamID // steamId for player1
 	player2 := tickets2[0].Member.SteamID // steamId for player2
+
+	player1Wallet := tickets1[0].Member.WalletAddress
+	player2Wallet := tickets2[0].Member.WalletAddress
 
 	url := os.Getenv("LICHESSAPI") + "/v1/match"
 
@@ -232,19 +244,19 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 	body, err := ScheduleMatch(url, requestBody)
 	if err != nil {
 		log.Println("Error making REST call:", err)
-		return
+		return nil, err
 	}
 
 	var lichessId LichessId
 	if err := json.NewDecoder(*body).Decode(&lichessId); err != nil {
 		log.Println("Error decoding response:", err)
-		return
+		return nil, err
 	}
 
 	jsonId, err := json.Marshal(lichessId)
 	if err != nil {
 		log.Println("Error marshalling lichess id:", err)
-		return
+		return nil, err
 	}
 
 	// Send lichess id to players
@@ -253,4 +265,49 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 	}
 
 	log.Println("Lichess match scheduled successfully")
+
+	showdownReq := &CreateLichessMatchShowdownRequest{
+		MatchID:       lichessId.Id,
+		Player1ID:     requestBody.Player1,
+		Player2ID:     requestBody.Player1,
+		Player1Wallet: player1Wallet,
+		Player2Wallet: player2Wallet,
+	}
+
+	createLichessMatchShowdown(showdownReq)
+	return &requestBody, nil
+}
+
+func createLichessMatchShowdown(matchInfo *CreateLichessMatchShowdownRequest) error {
+	showdownApi := os.Getenv("SHOWDOWN_API")
+	showdownKey := os.Getenv("SHOWDOWN_API_KEY")
+
+	url := fmt.Sprintf("%s/chess/create_quickplay_match", showdownApi)
+	client := &http.Client{}
+
+	jsonData, err := json.Marshal(matchInfo)
+
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("X-Api-Key", showdownKey)
+
+	resp, err := client.Do(req)
+
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Unexpected status code: %d", resp.StatusCode)
+	}
+	log.Println("CREATED MATCH ON SHOWDOWN API")
+	return nil
 }
