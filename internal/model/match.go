@@ -14,6 +14,8 @@ type MatchPlayer struct {
 	Option  int     `json:"option"`
 	Team    int     `json:"team"`
 	Score   float64 `json:"score"`
+	TxnHash string  `json:"txnHash"`
+	Payed   bool    `json:"payed"`
 }
 
 func (mp *MatchPlayer) Marshal() []byte {

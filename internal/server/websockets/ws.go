@@ -74,7 +74,7 @@ func usernameToKey(username string) (*string, error) {
 	return &apiResponse.Token, nil
 }
 
-func StartWebSocket(game string, steamId string, c *gin.Context) {
+func StartWebSocket(game string, steamId string, walletAddress string, c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		return
@@ -113,7 +113,11 @@ func StartWebSocket(game string, steamId string, c *gin.Context) {
 		eloData = external.GetDataFromRelay(steamId)
 	}
 
-	wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{SteamID: steamId, Elo: eloData.Elo}, game)
+	wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{
+		SteamID:       steamId,
+		Elo:           eloData.Elo,
+		WalletAddress: walletAddress,
+	}, game)
 
 	conn.WriteMessage(websocket.TextMessage, []byte("Hello, "+steamId))
 	for {
@@ -125,6 +129,25 @@ func StartWebSocket(game string, steamId string, c *gin.Context) {
 		var userResponse UserResponse
 		if err = json.Unmarshal(mess, &userResponse); err != nil {
 			log.Println(err)
+
+			var userConfirmation UserConfirmation
+
+			if err = json.Unmarshal(mess, &userConfirmation); err != nil {
+				log.Println(err)
+				return
+			}
+
+			redisPlayer := redis.RedisClient.HGet(userConfirmation.MatchId, steamId).Val()
+			matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
+
+			if matchPlayer.Option != 2 {
+				//match declined
+				return
+			}
+
+			matchPlayer.TxnHash = userConfirmation.TxnHash
+			redis.RedisClient.HSet(userResponse.MatchId, steamId, matchPlayer.Marshal())
+
 			return
 		}
 
@@ -134,4 +157,5 @@ func StartWebSocket(game string, steamId string, c *gin.Context) {
 		matchPlayer.Option = userResponse.Option
 		redis.RedisClient.HSet(userResponse.MatchId, steamId, matchPlayer.Marshal())
 	}
+
 }
