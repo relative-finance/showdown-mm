@@ -7,6 +7,11 @@ type UserResponse struct {
 	Option  int    `json:"option"`
 }
 
+type UserConfirmation struct {
+	MatchId string `json:"matchId"`
+	TxnHash string `json:"txnHash"`
+}
+
 type MatchFoundResponse struct {
 	MatchId string         `json:"matchId"`
 	TeamA   []model.Ticket `json:"teamA"`

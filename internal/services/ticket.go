@@ -20,10 +20,7 @@ func (s *TicketServiceImpl) SubmitTicket(g *gin.Context, submitTicketRequest mod
 		WalletAddress: submitTicketRequest.WalletAddress,
 		SteamID:       submitTicketRequest.SteamID,
 	}})
-
-	log.Print("services/ticket.go")
-	log.Print(resp.Err())
-
+	log.Print(resp)
 	return nil
 }
 

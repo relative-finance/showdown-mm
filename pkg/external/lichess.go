@@ -97,7 +97,7 @@ func GetLichessUsername(apiKey string) (string, error) {
 	if apiKey == "" {
 		return "", fmt.Errorf("LICHESS_API_KEY not found in environment variables")
 	}
-
+	log.Print(apiKey)
 	// url := fmt.Sprintf("https://lichess.org/api/user/%s/perf/%s", username, perf)
 	url := os.Getenv("LICHESS_BASE_URL") + "/api/account"
 	req, err := http.NewRequest("GET", url, nil)

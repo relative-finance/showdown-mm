@@ -129,6 +129,25 @@ func StartWebSocket(game string, steamId string, walletAddress string, c *gin.Co
 		var userResponse UserResponse
 		if err = json.Unmarshal(mess, &userResponse); err != nil {
 			log.Println(err)
+
+			var userConfirmation UserConfirmation
+
+			if err = json.Unmarshal(mess, &userConfirmation); err != nil {
+				log.Println(err)
+				return
+			}
+
+			redisPlayer := redis.RedisClient.HGet(userConfirmation.MatchId, steamId).Val()
+			matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
+
+			if matchPlayer.Option != 2 {
+				//match declined
+				return
+			}
+
+			matchPlayer.TxnHash = userConfirmation.TxnHash
+			redis.RedisClient.HSet(userResponse.MatchId, steamId, matchPlayer.Marshal())
+
 			return
 		}
 
@@ -138,4 +157,5 @@ func StartWebSocket(game string, steamId string, walletAddress string, c *gin.Co
 		matchPlayer.Option = userResponse.Option
 		redis.RedisClient.HSet(userResponse.MatchId, steamId, matchPlayer.Marshal())
 	}
+
 }

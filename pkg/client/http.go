@@ -148,14 +148,6 @@ func ScheduleCS2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 	}
 }
 
-type CreateLichessMatchShowdownRequest struct {
-	MatchID       string `json:"match_id"`
-	Player1ID     string `json:"player1_lichess_id"`
-	Player2ID     string `json:"player2_lichess_id"`
-	Player1Wallet string `json:"player1_wallet_address"`
-	Player2Wallet string `json:"player2_wallet_address"`
-}
-
 func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matchId string) (*CreateLichessMatchRequest, error) {
 	log.Println("Scheduling Lichess match")
 
@@ -217,9 +209,6 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 	player1 := tickets1[0].Member.SteamID // steamId for player1
 	player2 := tickets2[0].Member.SteamID // steamId for player2
 
-	player1Wallet := tickets1[0].Member.WalletAddress
-	player2Wallet := tickets2[0].Member.WalletAddress
-
 	url := os.Getenv("LICHESSAPI") + "/v1/match"
 
 	requestBody := CreateLichessMatchRequest{
@@ -265,49 +254,5 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 	}
 
 	log.Println("Lichess match scheduled successfully")
-
-	showdownReq := &CreateLichessMatchShowdownRequest{
-		MatchID:       lichessId.Id,
-		Player1ID:     requestBody.Player1,
-		Player2ID:     requestBody.Player1,
-		Player1Wallet: player1Wallet,
-		Player2Wallet: player2Wallet,
-	}
-
-	createLichessMatchShowdown(showdownReq)
 	return &requestBody, nil
-}
-
-func createLichessMatchShowdown(matchInfo *CreateLichessMatchShowdownRequest) error {
-	showdownApi := os.Getenv("SHOWDOWN_API")
-	showdownKey := os.Getenv("SHOWDOWN_API_KEY")
-
-	url := fmt.Sprintf("%s/chess/create_quickplay_match", showdownApi)
-	client := &http.Client{}
-
-	jsonData, err := json.Marshal(matchInfo)
-
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("X-Api-Key", showdownKey)
-
-	resp, err := client.Do(req)
-
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Unexpected status code: %d", resp.StatusCode)
-	}
-	log.Println("CREATED MATCH ON SHOWDOWN API")
-	return nil
 }
