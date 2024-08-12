@@ -153,7 +153,7 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 
 	if len(tickets1) == 0 || len(tickets2) == 0 {
 		log.Println("Insufficient players to schedule a match")
-		return nil, errors.New("Insufficient players to schedule a match")
+		return nil, errors.New("insufficient players to schedule a match")
 	}
 
 	// Sending team data to players - needs pulling username
@@ -254,5 +254,49 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 	}
 
 	log.Println("Lichess match scheduled successfully")
+
+	// Notify showdown-api of match status
+	go notifyShowdownAPI(matchId, lichessId.Id)
+
 	return &requestBody, nil
+}
+
+func notifyShowdownAPI(matchId, lichessId string) {
+	showdownReq := &StartLichessShowdownMatchRequest{
+		MatchID:   matchId,
+		LichessID: lichessId,
+	}
+
+	showdownApi := os.Getenv("SHOWDOWN_RELAY")
+
+	url := fmt.Sprintf("%s/chess/start_chess_match", showdownApi)
+	log.Println(url)
+	client := &http.Client{}
+
+	jsonData, err := json.Marshal(showdownReq)
+	if err != nil {
+		log.Println("Error marshalling showdown request:", err)
+		return
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Println("Error creating request:", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Error making REST call:", err)
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		err, _ := io.ReadAll(resp.Body)
+		log.Println("Unexpected status code:", resp.StatusCode, "with error:", string(err))
+		return
+	}
+
+	log.Println("Showdown API notified")
 }

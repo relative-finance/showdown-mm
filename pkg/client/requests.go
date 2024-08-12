@@ -62,6 +62,11 @@ type CreateLichessMatchRequest struct {
 	Webhook       string  `json:"webhook,omitempty"` // Webhook to be called after the match ends
 }
 
+type StartLichessShowdownMatchRequest struct {
+	MatchID   string `json:"matchId"`
+	LichessID string `json:"lichessId"`
+}
+
 type Clock struct {
 	Increment int `json:"increment"`
 	Limit     int `json:"limit"`
