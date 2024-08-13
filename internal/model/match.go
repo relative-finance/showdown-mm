@@ -16,6 +16,7 @@ type MatchPlayer struct {
 	Score   float64 `json:"score"`
 	TxnHash string  `json:"txnHash"`
 	Payed   bool    `json:"payed"`
+	ApiKey  string
 }
 
 func (mp *MatchPlayer) Marshal() []byte {

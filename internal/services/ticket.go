@@ -16,6 +16,15 @@ type TicketServiceImpl struct {
 }
 
 func (s *TicketServiceImpl) SubmitTicket(g *gin.Context, submitTicketRequest model.SubmitTicketRequest, queue string) error {
+	if submitTicketRequest.ApiKey != "" {
+		s.Redis.ZAdd(constants.GetIndexNameStr(queue), redis.Z{Score: float64(submitTicketRequest.Elo), Member: &model.MemberData{
+			WalletAddress: submitTicketRequest.WalletAddress,
+			SteamID:       submitTicketRequest.SteamID,
+			ApiKey:        submitTicketRequest.ApiKey,
+		}})
+
+		return nil
+	}
 	resp := s.Redis.ZAdd(constants.GetIndexNameStr(queue), redis.Z{Score: float64(submitTicketRequest.Elo), Member: &model.MemberData{
 		WalletAddress: submitTicketRequest.WalletAddress,
 		SteamID:       submitTicketRequest.SteamID,

@@ -107,7 +107,7 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 			if ret.Err() != nil {
 				log.Println("Error deleting match from redis: ", ret.Err())
 			}
-			break
+			return
 		}
 	}
 
@@ -156,7 +156,7 @@ type CreateLichessMatchShowdownRequest struct {
 }
 
 type QuickPlayResponse struct {
-	Hash string `json:"hash"`
+	Hash string `json:"txHash"`
 }
 
 func createLichessMatchShowdown(tickets1 []model.Ticket, tickets2 []model.Ticket, matchId string) (*string, error) {

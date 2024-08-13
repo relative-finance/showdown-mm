@@ -91,7 +91,6 @@ func StartWebSocket(game string, steamId string, walletAddress string, c *gin.Co
 		userConnectionsMutex.Unlock()
 	}()
 	var eloData *model.EloData
-
 	switch game {
 	case "lcqueue":
 		apiKey, err := usernameToKey(steamId)
@@ -109,25 +108,36 @@ func StartWebSocket(game string, steamId string, walletAddress string, c *gin.Co
 		} else {
 			eloData = &model.EloData{Elo: float64(rating)}
 		}
+
+		wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{
+			SteamID:       steamId,
+			Elo:           eloData.Elo,
+			WalletAddress: walletAddress,
+			ApiKey:        *apiKey,
+		}, game)
 	default:
 		eloData = external.GetDataFromRelay(steamId)
+		wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{
+			SteamID:       steamId,
+			Elo:           eloData.Elo,
+			WalletAddress: walletAddress,
+		}, game)
 	}
 
-	wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{
-		SteamID:       steamId,
-		Elo:           eloData.Elo,
-		WalletAddress: walletAddress,
-	}, game)
-
 	conn.WriteMessage(websocket.TextMessage, []byte("Hello, "+steamId))
+	waitForNewMsg := true
 	for {
 		_, mess, err := conn.ReadMessage()
 		if err != nil {
 			return
 		}
 
+		if !waitForNewMsg {
+			continue
+		}
+
 		var userResponse UserResponse
-		if err = json.Unmarshal(mess, &userResponse); err != nil {
+		if err = json.Unmarshal(mess, &userResponse); err != nil || userResponse.Option == 0 {
 			log.Println(err)
 
 			var userConfirmation UserConfirmation
@@ -146,9 +156,11 @@ func StartWebSocket(game string, steamId string, walletAddress string, c *gin.Co
 			}
 
 			matchPlayer.TxnHash = userConfirmation.TxnHash
+			matchPlayer.Payed = true
 			redis.RedisClient.HSet(userResponse.MatchId, steamId, matchPlayer.Marshal())
 
-			return
+			waitForNewMsg = false
+			continue
 		}
 
 		redisPlayer := redis.RedisClient.HGet(userResponse.MatchId, steamId).Val()

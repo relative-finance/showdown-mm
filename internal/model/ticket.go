@@ -6,6 +6,7 @@ type SubmitTicketRequest struct {
 	SteamID       string  `json:"steamId"`
 	Elo           float64 `json:"elo"`
 	WalletAddress string  `json:"walletAddress"`
+	ApiKey        string  `json:"apiKey"`
 }
 
 type Ticket struct {
@@ -16,6 +17,7 @@ type Ticket struct {
 type MemberData struct {
 	SteamID       string `json:"steamId"`
 	WalletAddress string `json:"walletAddress"`
+	ApiKey        string `json:"apiKey"`
 }
 
 func (md *MemberData) MarshalBinary() ([]byte, error) {

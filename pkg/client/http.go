@@ -9,7 +9,6 @@ import (
 	"log"
 	"mmf/internal/model"
 	ws "mmf/internal/server/websockets"
-	"mmf/pkg/external"
 
 	"net/http"
 	"os"
@@ -164,25 +163,15 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 
 	var ticket1team, tickets2team Teams
 	for _, ticket := range tickets1 {
-		username, err := external.GetLichessUsername(ticket.Member.SteamID)
-		if err != nil {
-			log.Println("Error getting lichess username:", err)
-			continue
-		}
 
-		ticket1team.YourTeam = append(ticket1team.YourTeam, username)
-		tickets2team.Opponent = append(tickets2team.Opponent, username)
+		ticket1team.YourTeam = append(ticket1team.YourTeam, ticket.Member.SteamID)
+		tickets2team.Opponent = append(tickets2team.Opponent, ticket.Member.SteamID)
 	}
 
 	for _, ticket := range tickets2 {
-		username, err := external.GetLichessUsername(ticket.Member.SteamID)
-		if err != nil {
-			log.Println("Error getting lichess username:", err)
-			continue
-		}
 
-		ticket1team.Opponent = append(ticket1team.Opponent, username)
-		tickets2team.YourTeam = append(tickets2team.YourTeam, username)
+		ticket1team.Opponent = append(ticket1team.Opponent, ticket.Member.SteamID)
+		tickets2team.YourTeam = append(tickets2team.YourTeam, ticket.Member.SteamID)
 	}
 
 	team1Data, err := json.Marshal(ticket1team)
@@ -206,8 +195,8 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 	}
 
 	// Assuming the first ticket in each list represents the player for the match
-	player1 := tickets1[0].Member.SteamID // steamId for player1
-	player2 := tickets2[0].Member.SteamID // steamId for player2
+	player1 := tickets1[0].Member.ApiKey // steamId for player1
+	player2 := tickets2[0].Member.ApiKey // steamId for player2
 
 	url := os.Getenv("LICHESSAPI") + "/v1/match"
 
