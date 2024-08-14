@@ -15,22 +15,19 @@ type TicketServiceImpl struct {
 	MMRConfig config.MMRConfig
 }
 
-func (s *TicketServiceImpl) SubmitTicket(g *gin.Context, submitTicketRequest model.SubmitTicketRequest, queue string) error {
-	if submitTicketRequest.ApiKey != "" {
-		s.Redis.ZAdd(constants.GetIndexNameStr(queue), redis.Z{Score: float64(submitTicketRequest.Elo), Member: &model.MemberData{
-			WalletAddress: submitTicketRequest.WalletAddress,
-			SteamID:       submitTicketRequest.SteamID,
-			ApiKey:        submitTicketRequest.ApiKey,
-		}})
-
-		return nil
+func (s *TicketServiceImpl) SubmitTicket(g *gin.Context, submitTicketRequest model.SubmitTicketRequest, queue string) (*model.MemberData, error) {
+	memberData := &model.MemberData{
+		WalletAddress:     submitTicketRequest.WalletAddress,
+		SteamID:           submitTicketRequest.SteamID,
+		LichessCustomData: submitTicketRequest.LichessCustomData,
 	}
-	resp := s.Redis.ZAdd(constants.GetIndexNameStr(queue), redis.Z{Score: float64(submitTicketRequest.Elo), Member: &model.MemberData{
-		WalletAddress: submitTicketRequest.WalletAddress,
-		SteamID:       submitTicketRequest.SteamID,
-	}})
-	log.Print(resp)
-	return nil
+	resp := s.Redis.ZAdd(constants.GetIndexNameStr(queue), redis.Z{Score: float64(submitTicketRequest.Elo), Member: memberData})
+	if resp.Err() != nil {
+		log.Println("Error adding ticket", resp.Err())
+		return nil, resp.Err()
+	}
+
+	return memberData, nil
 }
 
 func (s *TicketServiceImpl) GetAllTickets(g *gin.Context, queue string) []model.Ticket {

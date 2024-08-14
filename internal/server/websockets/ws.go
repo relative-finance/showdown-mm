@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mmf/internal/constants"
 	"mmf/internal/model"
 	"mmf/internal/redis"
 	"mmf/internal/wires"
@@ -55,7 +56,7 @@ func usernameToKey(username string) (*string, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Unexpected status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -74,7 +75,7 @@ func usernameToKey(username string) (*string, error) {
 	return &apiResponse.Token, nil
 }
 
-func StartWebSocket(game string, steamId string, walletAddress string, c *gin.Context) {
+func StartWebSocket(game string, steamId string, walletAddress string, lichessData *model.LichessCustomData, c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		return
@@ -85,11 +86,22 @@ func StartWebSocket(game string, steamId string, walletAddress string, c *gin.Co
 	userConnections[steamId] = conn
 	userConnectionsMutex.Unlock()
 
+	var memberData *model.MemberData
 	defer func() {
 		userConnectionsMutex.Lock()
 		delete(userConnections, steamId)
+		if memberData != nil {
+			memberJSON, err := json.Marshal(memberData)
+			if err != nil {
+				log.Println("Error serializing MemberData:", err)
+				return
+			}
+
+			redis.RedisClient.ZRem(constants.GetIndexNameStr(game), memberJSON)
+		}
 		userConnectionsMutex.Unlock()
 	}()
+
 	var eloData *model.EloData
 	switch game {
 	case "lcqueue":
@@ -109,19 +121,22 @@ func StartWebSocket(game string, steamId string, walletAddress string, c *gin.Co
 			eloData = &model.EloData{Elo: float64(rating)}
 		}
 
-		wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{
-			SteamID:       steamId,
-			Elo:           eloData.Elo,
-			WalletAddress: walletAddress,
-			ApiKey:        *apiKey,
-		}, game)
+		lichessData.ApiKey = *apiKey
 	default:
 		eloData = external.GetDataFromRelay(steamId)
-		wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{
-			SteamID:       steamId,
-			Elo:           eloData.Elo,
-			WalletAddress: walletAddress,
-		}, game)
+	}
+
+	memberData, err = wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{
+		SteamID:           steamId,
+		Elo:               eloData.Elo,
+		WalletAddress:     walletAddress,
+		LichessCustomData: lichessData,
+	}, game)
+	if err != nil {
+		conn.WriteMessage(websocket.TextMessage, []byte("Error submitting ticket"))
+		log.Println("Error submitting ticket")
+		log.Println(err.Error())
+		return
 	}
 
 	conn.WriteMessage(websocket.TextMessage, []byte("Hello, "+steamId))

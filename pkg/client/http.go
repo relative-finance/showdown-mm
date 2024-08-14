@@ -195,8 +195,8 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 	}
 
 	// Assuming the first ticket in each list represents the player for the match
-	player1 := tickets1[0].Member.ApiKey // steamId for player1
-	player2 := tickets2[0].Member.ApiKey // steamId for player2
+	player1 := tickets1[0].Member.LichessCustomData.ApiKey // steamId for player1
+	player2 := tickets2[0].Member.LichessCustomData.ApiKey // steamId for player2
 
 	url := os.Getenv("LICHESSAPI") + "/v1/match"
 
@@ -205,8 +205,8 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 		Player2: player2,
 		Variant: Standard,
 		Clock: Clock{
-			Increment: 0,
-			Limit:     300,
+			Increment: tickets1[0].Member.LichessCustomData.Increment,
+			Limit:     tickets1[0].Member.LichessCustomData.Time * 60,
 		},
 		Rated:         false,
 		Rules:         []Rules{},
@@ -221,6 +221,9 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 
 	body, err := ScheduleMatch(url, requestBody)
 	if err != nil {
+		ws.SendMessageToUser(tickets1[0].Member.SteamID, []byte("Error scheduling match"))
+		ws.SendMessageToUser(tickets2[0].Member.SteamID, []byte("Error scheduling match"))
+
 		log.Println("Error making REST call:", err)
 		return nil, err
 	}

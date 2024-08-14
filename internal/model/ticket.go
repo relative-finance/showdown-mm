@@ -3,10 +3,10 @@ package model
 import "encoding/json"
 
 type SubmitTicketRequest struct {
-	SteamID       string  `json:"steamId"`
-	Elo           float64 `json:"elo"`
-	WalletAddress string  `json:"walletAddress"`
-	ApiKey        string  `json:"apiKey"`
+	SteamID           string             `json:"steamId"`
+	Elo               float64            `json:"elo"`
+	WalletAddress     string             `json:"walletAddress"`
+	LichessCustomData *LichessCustomData `json:"lichessCustomData"`
 }
 
 type Ticket struct {
@@ -15,9 +15,23 @@ type Ticket struct {
 }
 
 type MemberData struct {
-	SteamID       string `json:"steamId"`
-	WalletAddress string `json:"walletAddress"`
-	ApiKey        string `json:"apiKey"`
+	SteamID           string             `json:"steamId"`
+	WalletAddress     string             `json:"walletAddress"`
+	LichessCustomData *LichessCustomData `json:"lichessCustomData"`
+}
+
+type Collateral string
+
+const (
+	Showdown Collateral = "showdown"
+	Practice Collateral = "practice"
+)
+
+type LichessCustomData struct {
+	ApiKey     string     `json:"apiKey"`
+	Time       int        `json:"interval"`
+	Increment  int        `json:"increment"`
+	Collateral Collateral `json:"collateral"`
 }
 
 func (md *MemberData) MarshalBinary() ([]byte, error) {

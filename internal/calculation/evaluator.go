@@ -49,6 +49,19 @@ func EvaluateTickets(config config.MMRConfig, queue constants.QueueType) bool {
 		tickets1, tickets2 := getTeams(matchTickets)
 		matchQuality := getMatchQuality(tickets1, tickets2, config.Mode)
 		if matchQuality > config.Treshold {
+			if queue == constants.LCQueue {
+				var lcData1, lcData2 *model.LichessCustomData
+				lcData1 = tickets1[0].Member.LichessCustomData
+				lcData2 = tickets2[0].Member.LichessCustomData
+
+				if lcData1 == nil || lcData2 == nil {
+					continue
+				}
+
+				if lcData1.Time != lcData2.Time || lcData1.Increment != lcData2.Increment || lcData1.Collateral != lcData2.Collateral {
+					continue
+				}
+			}
 			matchId := "match_" + strconv.Itoa(int(time.Now().UnixMilli()))
 			utils.AddMatchToRedis(matchId, tickets1, tickets2, queue)
 			sent := ws.SendMatchFoundToPlayers(matchId, matchTickets)
