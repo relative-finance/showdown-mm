@@ -64,7 +64,7 @@ type CreateLichessMatchRequest struct {
 
 type StartLichessShowdownMatchRequest struct {
 	MatchID   string `json:"matchId"`
-	LichessID string `json:"lichessId"`
+	LichessID string `json:"lichessMatchId"`
 }
 
 type Clock struct {

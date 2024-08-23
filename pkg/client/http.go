@@ -273,20 +273,20 @@ func notifyShowdownAPI(matchId, lichessId string) {
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Println("Error creating request:", err)
+		log.Println("Error creating showdown api request:", err)
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("Error making REST call:", err)
+		log.Println("Error making showdown REST call:", err)
 		return
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		err, _ := io.ReadAll(resp.Body)
-		log.Println("Unexpected status code:", resp.StatusCode, "with error:", string(err))
+		log.Println("Failed to start match on Showdown Api - Unexpected status code:", resp.StatusCode, "with error:", string(err))
 		return
 	}
 
