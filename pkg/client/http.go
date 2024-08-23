@@ -195,8 +195,8 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 	}
 
 	// Assuming the first ticket in each list represents the player for the match
-	player1 := tickets1[0].Member.LichessCustomData.ApiKey // steamId for player1
-	player2 := tickets2[0].Member.LichessCustomData.ApiKey // steamId for player2
+	player1 := tickets1[0].Member.SteamID // steamId for player1
+	player2 := tickets2[0].Member.SteamID // steamId for player2
 
 	url := os.Getenv("LICHESSAPI") + "/v1/match"
 
