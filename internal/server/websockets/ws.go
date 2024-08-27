@@ -1,10 +1,12 @@
 package ws
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"mmf/config"
 	"mmf/internal/constants"
 	"mmf/internal/model"
 	"mmf/internal/redis"
@@ -12,8 +14,12 @@ import (
 	"mmf/pkg/external"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
@@ -161,7 +167,6 @@ func StartWebSocket(game string, steamId string, walletAddress string, lichessDa
 				log.Println(err)
 				return
 			}
-
 			redisPlayer := redis.RedisClient.HGet(userConfirmation.MatchId, steamId).Val()
 			matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
 
@@ -171,7 +176,10 @@ func StartWebSocket(game string, steamId string, walletAddress string, lichessDa
 			}
 
 			matchPlayer.TxnHash = userConfirmation.TxnHash
-			matchPlayer.Payed = true
+			matchPlayer.Payed = checkTransactionOnChain(userConfirmation.TxnHash, userConfirmation.MatchId, memberData)
+			if !matchPlayer.Payed {
+				continue
+			}
 			redis.RedisClient.HSet(userResponse.MatchId, steamId, matchPlayer.Marshal())
 
 			waitForNewMsg = false
@@ -185,4 +193,85 @@ func StartWebSocket(game string, steamId string, walletAddress string, lichessDa
 		redis.RedisClient.HSet(userResponse.MatchId, steamId, matchPlayer.Marshal())
 	}
 
+}
+
+const abiJSON = `[{
+	"inputs": [
+		{
+			"internalType": "string",
+			"name": "_matchId",
+			"type": "string"
+		},
+		{
+			"internalType": "string",
+			"name": "_chessUsername",
+			"type": "string"
+		},
+		{
+			"internalType": "uint256",
+			"name": "_amount",
+			"type": "uint256"
+		}
+	],
+	"name": "joinMatch",
+	"outputs": [],
+	"stateMutability": "nonpayable",
+	"type": "function"
+}]`
+
+func checkTransactionOnChain(hash, matchId string, ticket *model.MemberData) bool {
+	txHash := common.HexToHash(hash)
+
+	client, err := ethclient.Dial(config.GlobalConfig.EthRpc.URL)
+	if err != nil {
+		log.Println("Error connecting to eth client: ", err)
+		return false
+	}
+
+	tx, _, err := client.TransactionByHash(context.Background(), txHash)
+	if err != nil {
+		log.Println("Error getting transaction by hash: ", err)
+		return false
+	}
+
+	if tx == nil {
+		return false
+	}
+
+	parsedABI, err := abi.JSON(strings.NewReader(abiJSON))
+	if err != nil {
+		log.Println("Error parsing abi: ", err)
+		return false
+	}
+
+	data := tx.Data()
+
+	method, err := parsedABI.MethodById(data[:4])
+	if err != nil {
+		log.Println("Error getting method by id: ", err)
+		return false
+	}
+
+	params, err := method.Inputs.Unpack(data[4:])
+	if err != nil {
+		log.Println("Error unpacking data: ", err)
+		return false
+	}
+
+	if len(params) != 3 {
+		log.Println("Invalid number of parameters")
+		return false
+	}
+
+	if params[0].(string) != matchId {
+		log.Println("Invalid match id")
+		return false
+	}
+
+	if params[1].(string) != ticket.SteamID {
+		log.Println("Invalid username")
+		return false
+	}
+
+	return true
 }

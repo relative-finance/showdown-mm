@@ -11,6 +11,7 @@ type Config struct {
 	Redis     RedisConfig
 	Server    ServerConfig
 	MMRConfig MMRConfig
+	EthRpc    EthRpcConfig
 }
 
 type ServerConfig struct {
@@ -31,6 +32,12 @@ type RedisConfig struct {
 	Password string
 	DB       int
 }
+
+type EthRpcConfig struct {
+	URL string
+}
+
+var GlobalConfig *Config
 
 func NewConfig() *Config {
 	db, err := strconv.Atoi(readEnvVar("REDIS_DB"))
@@ -53,7 +60,7 @@ func NewConfig() *Config {
 		timeToCancelMatch = 60 // default
 	}
 
-	return &Config{
+	GlobalConfig = &Config{
 		Redis: RedisConfig{
 			Host:     readEnvVar("REDIS_HOST"),
 			Port:     readEnvVar("REDIS_PORT"),
@@ -70,7 +77,12 @@ func NewConfig() *Config {
 			Treshold:          treshold,
 			TimeToCancelMatch: timeToCancelMatch,
 		},
+		EthRpc: EthRpcConfig{
+			URL: readEnvVar("ETH_RPC_URL"),
+		},
 	}
+
+	return GlobalConfig
 }
 
 func readEnvVar(name string) string {

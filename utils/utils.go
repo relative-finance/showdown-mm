@@ -136,8 +136,8 @@ func MatchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, den
 			return
 		}
 
-		if matchPlayer.Option > statusMarker {
-			redis.RedisClient.ZAdd(constants.GetIndexNameQueue(queue), r.Z{Score: matchPlayer.Score, Member: matchPlayer.SteamId})
+		if matchPlayer.Option > statusMarker && matchPlayer.Payed {
+			redis.RedisClient.ZAdd(constants.GetIndexNameQueue(queue), r.Z{Score: matchPlayer.Score, Member: redisPlayer})
 			continue
 		}
 
@@ -162,7 +162,7 @@ type QuickPlayResponse struct {
 func createLichessMatchShowdown(tickets1 []model.Ticket, tickets2 []model.Ticket, matchId string) (*string, error) {
 	if len(tickets1) == 0 || len(tickets2) == 0 {
 		log.Println("Insufficient players to schedule a match")
-		return nil, errors.New("Insufficient players to schedule a match")
+		return nil, errors.New("insufficient players to schedule a match")
 	}
 
 	// Sending team data to players - needs pulling username
@@ -222,7 +222,7 @@ func createLichessMatchShowdown(tickets1 []model.Ticket, tickets2 []model.Ticket
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Unexpected status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	defer resp.Body.Close()
