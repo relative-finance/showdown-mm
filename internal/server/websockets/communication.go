@@ -1,37 +1,48 @@
 package ws
 
 import (
-	"encoding/json"
 	"log"
 	"mmf/internal/model"
-
-	"github.com/gorilla/websocket"
 )
 
 func SendMatchFoundToPlayers(matchId string, matchTickets []model.Ticket) bool {
 	mess := GenerateMatchFoundResponse(matchTickets, matchId)
-	marshalled, err := json.Marshal(mess)
-	if err != nil {
-		return false
-	}
 
 	for _, ticket := range matchTickets {
-		SendMessageToUser(ticket.Member.SteamID, marshalled)
+		SendJSONToUser(ticket.Member.Id, Info, mess)
 	}
 	return true
 }
 
-func SendMessageToUser(steamId string, message []byte) {
+func SendMessageToUser(id string, event EventType, message string) {
 	userConnectionsMutex.Lock()
 	defer userConnectionsMutex.Unlock()
 
-	conn, ok := userConnections[steamId]
+	conn, ok := userConnections[id]
 	if !ok {
 		log.Println("User not connected")
 		return
 	}
 
-	if err := conn.WriteMessage(websocket.TextMessage, message); err != nil {
+	if err := conn.WriteJSON(GetMessage(event, message)); err != nil {
+		log.Println(err)
+	}
+}
+
+func SendJSONToUser(id string, event EventType, message interface{}) {
+	userConnectionsMutex.Lock()
+	defer userConnectionsMutex.Unlock()
+
+	conn, ok := userConnections[id]
+	if !ok {
+		log.Println("User not connected")
+		return
+	}
+
+	if err := conn.WriteJSON(map[string]interface{}{
+		"eventType": event,
+		"message":   message,
+	}); err != nil {
 		log.Println(err)
 	}
 }

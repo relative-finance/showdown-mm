@@ -72,7 +72,7 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 					matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
 
 					matchPlayer.TxnHash = *hash
-					redis.RedisClient.HSet(matchId, matchPlayer.SteamId, matchPlayer.Marshal())
+					redis.RedisClient.HSet(matchId, matchPlayer.Id, matchPlayer.Marshal())
 				}
 			}
 
@@ -82,7 +82,7 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 				if !matchPlayer.Payed {
 					allPayed = false
 
-					log.Println("Match not payed for by ", matchPlayer.SteamId)
+					log.Println("Match not payed for by ", matchPlayer.Id)
 					break
 				}
 			}
@@ -117,8 +117,8 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 func DisconnectAllUsers(matchId string) {
 	for _, redisPlayer := range redis.RedisClient.HGetAll(matchId).Val() {
 		matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
-		log.Println("Disconnecting user: ", matchPlayer.SteamId)
-		ws.DisconnectUser(matchPlayer.SteamId)
+		log.Println("Disconnecting user: ", matchPlayer.Id)
+		ws.DisconnectUser(matchPlayer.Id)
 	}
 }
 
@@ -141,7 +141,7 @@ func MatchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, den
 			continue
 		}
 
-		ws.DisconnectUser(matchPlayer.SteamId)
+		ws.SendMessageToUser(matchPlayer.Id, ws.Error, "Time for payment expired")
 	}
 
 	redis.RedisClient.Del(matchId)
@@ -174,17 +174,17 @@ func createLichessMatchShowdown(tickets1 []model.Ticket, tickets2 []model.Ticket
 	var ticket1team, tickets2team Teams
 	for _, ticket := range tickets1 {
 
-		ticket1team.YourTeam = append(ticket1team.YourTeam, ticket.Member.SteamID)
-		tickets2team.Opponent = append(tickets2team.Opponent, ticket.Member.SteamID)
+		ticket1team.YourTeam = append(ticket1team.YourTeam, ticket.Member.Id)
+		tickets2team.Opponent = append(tickets2team.Opponent, ticket.Member.Id)
 	}
 
 	for _, ticket := range tickets2 {
-		ticket1team.Opponent = append(ticket1team.Opponent, ticket.Member.SteamID)
-		tickets2team.YourTeam = append(tickets2team.YourTeam, ticket.Member.SteamID)
+		ticket1team.Opponent = append(ticket1team.Opponent, ticket.Member.Id)
+		tickets2team.YourTeam = append(tickets2team.YourTeam, ticket.Member.Id)
 	}
 
-	player1 := tickets1[0].Member.SteamID // steamId for player1
-	player2 := tickets2[0].Member.SteamID // steamId for player2
+	player1 := tickets1[0].Member.Id // steamId for player1
+	player2 := tickets2[0].Member.Id // steamId for player2
 
 	player1Wallet := tickets1[0].Member.WalletAddress
 	player2Wallet := tickets2[0].Member.WalletAddress

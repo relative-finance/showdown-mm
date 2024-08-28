@@ -47,7 +47,7 @@ func ScheduleDota2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 	// map tickets1 to TeamA
 	teamA := []int64{}
 	for _, ticket := range tickets1 {
-		player, err := strconv.ParseInt(ticket.Member.SteamID, 10, 64)
+		player, err := strconv.ParseInt(ticket.Member.Id, 10, 64)
 		if err != nil {
 			log.Println("Error parsing ticket member:", err)
 			return
@@ -58,7 +58,7 @@ func ScheduleDota2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 
 	teamB := []int64{}
 	for _, ticket := range tickets2 {
-		player, err := strconv.ParseInt(ticket.Member.SteamID, 10, 64)
+		player, err := strconv.ParseInt(ticket.Member.Id, 10, 64)
 		if err != nil {
 			log.Println("Error parsing ticket member:", err)
 			return
@@ -112,14 +112,14 @@ func ScheduleCS2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 	for _, ticket := range tickets1 {
 		requestBody.Players = append(requestBody.Players, PlayerDatHost{
 			Team:      "team1",
-			SteamId64: ticket.Member.SteamID,
+			SteamId64: ticket.Member.Id,
 		})
 	}
 
 	for _, ticket := range tickets2 {
 		requestBody.Players = append(requestBody.Players, PlayerDatHost{
 			Team:      "team2",
-			SteamId64: ticket.Member.SteamID,
+			SteamId64: ticket.Member.Id,
 		})
 	}
 
@@ -136,14 +136,8 @@ func ScheduleCS2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 		return
 	}
 
-	var message []byte
-	if message, err = json.Marshal(matchResponse); err != nil {
-		log.Println("Error marshalling message:", err)
-		return
-	}
-
 	for _, ticket := range append(tickets1, tickets2...) {
-		ws.SendMessageToUser(ticket.Member.SteamID, message)
+		ws.SendJSONToUser(ticket.Member.Id, ws.Info, matchResponse)
 	}
 }
 
@@ -161,42 +155,30 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 		Opponent []string `json:"opponent_team"`
 	}
 
-	var ticket1team, tickets2team Teams
+	var tickets1team, tickets2team Teams
 	for _, ticket := range tickets1 {
 
-		ticket1team.YourTeam = append(ticket1team.YourTeam, ticket.Member.SteamID)
-		tickets2team.Opponent = append(tickets2team.Opponent, ticket.Member.SteamID)
+		tickets1team.YourTeam = append(tickets1team.YourTeam, ticket.Member.Id)
+		tickets2team.Opponent = append(tickets2team.Opponent, ticket.Member.Id)
 	}
 
 	for _, ticket := range tickets2 {
 
-		ticket1team.Opponent = append(ticket1team.Opponent, ticket.Member.SteamID)
-		tickets2team.YourTeam = append(tickets2team.YourTeam, ticket.Member.SteamID)
-	}
-
-	team1Data, err := json.Marshal(ticket1team)
-	if err != nil {
-		log.Println("Error marshalling team1 data:", err)
-		return nil, err
-	}
-
-	team2Data, err := json.Marshal(tickets2team)
-	if err != nil {
-		log.Println("Error marshalling team2 data:", err)
-		return nil, err
+		tickets1team.Opponent = append(tickets1team.Opponent, ticket.Member.Id)
+		tickets2team.YourTeam = append(tickets2team.YourTeam, ticket.Member.Id)
 	}
 
 	for _, ticket := range tickets1 {
-		ws.SendMessageToUser(ticket.Member.SteamID, team1Data)
+		ws.SendJSONToUser(ticket.Member.Id, ws.Info, tickets1team)
 	}
 
 	for _, ticket := range tickets2 {
-		ws.SendMessageToUser(ticket.Member.SteamID, team2Data)
+		ws.SendJSONToUser(ticket.Member.Id, ws.Info, tickets2team)
 	}
 
 	// Assuming the first ticket in each list represents the player for the match
-	player1 := tickets1[0].Member.SteamID // steamId for player1
-	player2 := tickets2[0].Member.SteamID // steamId for player2
+	player1 := tickets1[0].Member.Id // steamId for player1
+	player2 := tickets2[0].Member.Id // steamId for player2
 
 	url := os.Getenv("LICHESSAPI") + "/v1/match"
 
@@ -221,8 +203,8 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 
 	body, err := ScheduleMatch(url, requestBody)
 	if err != nil {
-		ws.SendMessageToUser(tickets1[0].Member.SteamID, []byte("Error scheduling match"))
-		ws.SendMessageToUser(tickets2[0].Member.SteamID, []byte("Error scheduling match"))
+		ws.SendMessageToUser(tickets1[0].Member.Id, ws.Error, "Error scheduling match")
+		ws.SendMessageToUser(tickets2[0].Member.Id, ws.Error, "Error scheduling match")
 
 		log.Println("Error making REST call:", err)
 		return nil, err
@@ -234,15 +216,9 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 		return nil, err
 	}
 
-	jsonId, err := json.Marshal(lichessId)
-	if err != nil {
-		log.Println("Error marshalling lichess id:", err)
-		return nil, err
-	}
-
 	// Send lichess id to players
 	for _, ticket := range append(tickets1, tickets2...) {
-		ws.SendMessageToUser(ticket.Member.SteamID, jsonId)
+		ws.SendJSONToUser(ticket.Member.Id, ws.Info, lichessId)
 	}
 
 	log.Println("Lichess match scheduled successfully")

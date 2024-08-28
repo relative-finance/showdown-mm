@@ -22,6 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/mitchellh/mapstructure"
 )
 
 var upgrader = websocket.Upgrader{
@@ -81,7 +82,143 @@ func usernameToKey(username string) (*string, error) {
 	return &apiResponse.Token, nil
 }
 
-func StartWebSocket(game string, steamId string, walletAddress string, lichessData *model.LichessCustomData, c *gin.Context) {
+func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.Context) {
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	userConnectionsMutex.Lock()
+	userConnections[id] = conn
+	userConnectionsMutex.Unlock()
+
+	var memberData *model.MemberData
+	defer func() {
+		userConnectionsMutex.Lock()
+		defer userConnectionsMutex.Unlock()
+		delete(userConnections, id)
+		if memberData != nil {
+			memberJSON, err := json.Marshal(memberData)
+			if err != nil {
+				log.Println("Error serializing MemberData:", err)
+				return
+			}
+
+			redis.RedisClient.ZRem(constants.GetIndexNameStr(game), memberJSON)
+		}
+	}()
+
+	var eloData *model.EloData
+	apiKey, err := usernameToKey(id)
+	if err != nil {
+		log.Println("Error getting token from showdown api ")
+		log.Println(err.Error())
+		return
+	}
+
+	rating, err := external.GetGlicko(*apiKey, "blitz") // TODO: Make it so that elo is fetched for correct game mode
+	if err != nil {
+		log.Println("Error getting elo from lichess, using default elo 1500")
+		eloData = &model.EloData{Elo: 1500}
+	} else {
+		eloData = &model.EloData{Elo: float64(rating)}
+	}
+
+	conn.WriteJSON(GetMessage(Info, "Hello, "+id))
+	waitForNewMsg := true
+	for {
+		_, mess, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+
+		if !waitForNewMsg {
+			continue
+		}
+
+		var userResponse UserMessage
+		if err = json.Unmarshal(mess, &userResponse); err != nil {
+			conn.WriteJSON(GetMessage(Error, "Error parsing message"))
+			continue
+		}
+
+		switch userResponse.Type {
+		case JoinQueue:
+			var payload *model.LichessCustomData
+			if err := mapstructure.Decode(userResponse.Payload, &payload); err != nil || payload == nil {
+				conn.WriteJSON(GetMessage(Error, "Error parsing payload"))
+				continue
+			}
+
+			memberData, err = wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{
+				Id:                id,
+				Elo:               eloData.Elo,
+				WalletAddress:     walletAddress,
+				LichessCustomData: payload,
+			}, game)
+			if err != nil {
+				conn.WriteJSON(GetMessage(Error, "Error submitting ticket"))
+				log.Println("Error submitting ticket")
+				log.Println(err.Error())
+			}
+			conn.WriteJSON(GetMessage(Info, "Joined queue"))
+		case LeaveQueue:
+			cmd := redis.RedisClient.ZRem(constants.GetIndexNameStr(game), memberData)
+			if cmd.Err() != nil {
+				log.Println("Error removing ticket from queue")
+				log.Println(cmd.Err())
+				conn.WriteJSON(GetMessage(Error, "Error leaving queue"))
+				continue
+			}
+
+			conn.WriteJSON(GetMessage(Info, "Left queue"))
+		case SendPayment:
+			var payload *UserPayment
+			if err := mapstructure.Decode(userResponse.Payload, &payload); err != nil || payload == nil {
+				conn.WriteJSON(GetMessage(Error, "Error parsing payload"))
+				continue
+			}
+
+			payed := checkTransactionOnChain(payload, memberData)
+			if !payed {
+				conn.WriteJSON(GetMessage(Error, "Error processing payment"))
+				continue
+			}
+
+			redisPlayer := redis.RedisClient.HGet(payload.MatchId, id).Val()
+			matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
+			if matchPlayer == nil {
+				conn.WriteJSON(GetMessage(Error, "Error getting match player"))
+				continue
+			}
+
+			matchPlayer.Payed = true
+			redis.RedisClient.HSet(payload.MatchId, id, matchPlayer.Marshal())
+			conn.WriteJSON(GetMessage(Info, "Payment processed"))
+		case SendOption:
+			var payload *UserResponse
+			if err := mapstructure.Decode(userResponse.Payload, &payload); err != nil || payload == nil {
+				conn.WriteJSON(GetMessage(Error, "Error parsing payload"))
+				continue
+			}
+
+			redisPlayer := redis.RedisClient.HGet(payload.MatchId, id).Val()
+			matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
+			if matchPlayer == nil {
+				conn.WriteJSON(GetMessage(Error, "Error getting match player"))
+				continue
+			}
+
+			matchPlayer.Option = payload.Option
+			redis.RedisClient.HSet(payload.MatchId, id, matchPlayer.Marshal())
+			conn.WriteJSON(GetMessage(Info, "Send option successful"))
+		}
+	}
+
+}
+
+func StartWebSocket(game string, steamId string, walletAddress string, c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		return
@@ -95,6 +232,7 @@ func StartWebSocket(game string, steamId string, walletAddress string, lichessDa
 	var memberData *model.MemberData
 	defer func() {
 		userConnectionsMutex.Lock()
+		defer userConnectionsMutex.Unlock()
 		delete(userConnections, steamId)
 		if memberData != nil {
 			memberJSON, err := json.Marshal(memberData)
@@ -105,7 +243,6 @@ func StartWebSocket(game string, steamId string, walletAddress string, lichessDa
 
 			redis.RedisClient.ZRem(constants.GetIndexNameStr(game), memberJSON)
 		}
-		userConnectionsMutex.Unlock()
 	}()
 
 	var eloData *model.EloData
@@ -127,25 +264,23 @@ func StartWebSocket(game string, steamId string, walletAddress string, lichessDa
 			eloData = &model.EloData{Elo: float64(rating)}
 		}
 
-		lichessData.ApiKey = *apiKey
 	default:
 		eloData = external.GetDataFromRelay(steamId)
 	}
 
 	memberData, err = wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{
-		SteamID:           steamId,
-		Elo:               eloData.Elo,
-		WalletAddress:     walletAddress,
-		LichessCustomData: lichessData,
+		Id:            steamId,
+		Elo:           eloData.Elo,
+		WalletAddress: walletAddress,
 	}, game)
 	if err != nil {
-		conn.WriteMessage(websocket.TextMessage, []byte("Error submitting ticket"))
+		conn.WriteJSON(GetMessage(Error, "Error submitting ticket"))
 		log.Println("Error submitting ticket")
 		log.Println(err.Error())
 		return
 	}
 
-	conn.WriteMessage(websocket.TextMessage, []byte("Hello, "+steamId))
+	conn.WriteJSON(GetMessage(Info, "Hello, "+steamId))
 	waitForNewMsg := true
 	for {
 		_, mess, err := conn.ReadMessage()
@@ -161,7 +296,7 @@ func StartWebSocket(game string, steamId string, walletAddress string, lichessDa
 		if err = json.Unmarshal(mess, &userResponse); err != nil || userResponse.Option == 0 {
 			log.Println(err)
 
-			var userConfirmation UserConfirmation
+			var userConfirmation UserPayment
 
 			if err = json.Unmarshal(mess, &userConfirmation); err != nil {
 				log.Println(err)
@@ -176,7 +311,7 @@ func StartWebSocket(game string, steamId string, walletAddress string, lichessDa
 			}
 
 			matchPlayer.TxnHash = userConfirmation.TxnHash
-			matchPlayer.Payed = checkTransactionOnChain(userConfirmation.TxnHash, userConfirmation.MatchId, memberData)
+			matchPlayer.Payed = checkTransactionOnChain(&userConfirmation, memberData)
 			if !matchPlayer.Payed {
 				continue
 			}
@@ -219,8 +354,8 @@ const abiJSON = `[{
 	"type": "function"
 }]`
 
-func checkTransactionOnChain(hash, matchId string, ticket *model.MemberData) bool {
-	txHash := common.HexToHash(hash)
+func checkTransactionOnChain(userConfirmation *UserPayment, ticket *model.MemberData) bool {
+	txHash := common.HexToHash(userConfirmation.TxnHash)
 
 	client, err := ethclient.Dial(config.GlobalConfig.EthRpc.URL)
 	if err != nil {
@@ -263,12 +398,12 @@ func checkTransactionOnChain(hash, matchId string, ticket *model.MemberData) boo
 		return false
 	}
 
-	if params[0].(string) != matchId {
-		log.Println("Invalid match id")
-		return false
-	}
+	// if params[0].(string) != userConfirmation.MatchId {
+	// 	log.Println("Invalid match id")
+	// 	return false
+	// }
 
-	if params[1].(string) != ticket.SteamID {
+	if params[1].(string) != ticket.Id {
 		log.Println("Invalid username")
 		return false
 	}

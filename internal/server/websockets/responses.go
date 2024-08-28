@@ -7,7 +7,33 @@ type UserResponse struct {
 	Option  int    `json:"option"`
 }
 
-type UserConfirmation struct {
+type MessageType string
+
+const (
+	JoinQueue   MessageType = "JOIN_QUEUE"
+	LeaveQueue  MessageType = "LEAVE_QUEUE"
+	SendPayment MessageType = "SEND_PAYMENT"
+	SendOption  MessageType = "SEND_OPTION"
+)
+
+var MessageTypeValues = map[string]MessageType{
+	"JOIN_QUEUE":   JoinQueue,
+	"LEAVE_QUEUE":  LeaveQueue,
+	"SEND_PAYMENT": SendPayment,
+	"SEND_OPTION":  SendOption,
+}
+
+type UserMessage struct {
+	Type    MessageType `json:"type"`
+	Payload interface{} `json:"payload"`
+}
+
+type UserJoinQueue struct {
+	Type    MessageType             `json:"type"`
+	Payload model.LichessCustomData `json:"payload"`
+}
+
+type UserPayment struct {
 	MatchId string `json:"matchId"`
 	TxnHash string `json:"txnHash"`
 }
@@ -24,4 +50,21 @@ func GenerateMatchFoundResponse(tickets []model.Ticket, matchId string) MatchFou
 	mess.TeamA = tickets[:mid]
 	mess.TeamB = tickets[mid:]
 	return mess
+}
+
+type EventType string
+
+const (
+	Info    EventType = "INFO"
+	Error   EventType = "ERROR"
+	Success EventType = "SUCCESS"
+)
+
+type Message struct {
+	EventType EventType `json:"eventType"`
+	Message   string    `json:"message"`
+}
+
+func GetMessage(event EventType, message string) Message {
+	return Message{EventType: event, Message: message}
 }

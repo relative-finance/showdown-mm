@@ -3,7 +3,7 @@ package model
 import "encoding/json"
 
 type SubmitTicketRequest struct {
-	SteamID           string             `json:"steamId"`
+	Id                string             `json:"steamId"`
 	Elo               float64            `json:"elo"`
 	WalletAddress     string             `json:"walletAddress"`
 	LichessCustomData *LichessCustomData `json:"lichessCustomData"`
@@ -15,7 +15,7 @@ type Ticket struct {
 }
 
 type MemberData struct {
-	SteamID           string             `json:"steamId"`
+	Id                string             `json:"id"`
 	WalletAddress     string             `json:"walletAddress"`
 	LichessCustomData *LichessCustomData `json:"lichessCustomData"`
 }
@@ -28,8 +28,7 @@ const (
 )
 
 type LichessCustomData struct {
-	ApiKey     string     `json:"apiKey"`
-	Time       int        `json:"interval"`
+	Time       int        `json:"time"`
 	Increment  int        `json:"increment"`
 	Collateral Collateral `json:"collateral"`
 }

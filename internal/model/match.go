@@ -10,7 +10,7 @@ type EloData struct {
 }
 
 type MatchPlayer struct {
-	SteamId string  `json:"steamId"`
+	Id      string  `json:"id"`
 	Option  int     `json:"option"`
 	Team    int     `json:"team"`
 	Score   float64 `json:"score"`
