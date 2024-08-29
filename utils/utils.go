@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mmf/config"
 	"mmf/internal/constants"
 	"mmf/internal/model"
 	"mmf/internal/redis"
@@ -19,14 +20,16 @@ import (
 	r "github.com/go-redis/redis"
 )
 
-func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 []model.Ticket, tickets2 []model.Ticket, timeToCancelMatch int) {
+func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 []model.Ticket, tickets2 []model.Ticket) {
+	mmCfg := config.GlobalConfig.MMRConfig
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
-	end := time.Now().Add(time.Duration(timeToCancelMatch) * time.Second)
+	timeToAccept := time.Now().Add(time.Duration(mmCfg.TimeToAccept) * time.Second)
 	for range ticker.C {
-		if time.Now().After(end) {
-			break
+		if time.Now().After(timeToAccept) {
+			MatchFailedReturnPlayersToMM(queue, matchId, false)
+			return
 		}
 
 		allAccepted := true
@@ -44,74 +47,65 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 			}
 		}
 
+		if allAccepted {
+			break
+		}
+	}
+
+	log.Println("Creating match on chain")
+	_, err := createLichessMatchShowdown(tickets1, tickets2, matchId)
+	if err != nil {
+		// logic to return players to matchmaking
+		log.Println("Error while creating match on showdown ", err.Error())
+		return
+	}
+
+	end := time.Now().Add(time.Duration(mmCfg.TimeToCancelMatch) * time.Second)
+	for range ticker.C {
+		if time.Now().After(end) {
+			ticker.Stop()
+			MatchFailedReturnPlayersToMM(queue, matchId, false, true)
+			return
+		}
+
 		allPayed := true
-		if queue == constants.LCQueue && allAccepted {
-			log.Println("Everyone accepted, checking for match on chain")
-			allCreated := true
-			for _, redisPlayer := range redis.RedisClient.HGetAll(matchId).Val() {
-				matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
-
-				if matchPlayer.TxnHash == "" {
-					allCreated = false
-
-					log.Println("Match not created on chain")
-					break
-				}
-			}
-
-			if !allCreated {
-				log.Println("Creating match on chain")
-				hash, err := createLichessMatchShowdown(tickets1, tickets2, matchId)
-
-				if err != nil {
-					log.Println(err.Error())
-					return
-				}
-
-				for _, redisPlayer := range redis.RedisClient.HGetAll(matchId).Val() {
-					matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
-
-					matchPlayer.TxnHash = *hash
-					redis.RedisClient.HSet(matchId, matchPlayer.Id, matchPlayer.Marshal())
-				}
-			}
-
+		if queue == constants.LCQueue {
 			for _, redisPlayer := range redis.RedisClient.HGetAll(matchId).Val() {
 				matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
 
 				if !matchPlayer.Payed {
 					allPayed = false
-
-					log.Println("Match not payed for by ", matchPlayer.Id)
 					break
 				}
 			}
 		}
 
-		log.Println("All players accepted: ", allAccepted)
-
-		if allAccepted && allPayed {
-			ticker.Stop()
-			switch queue {
-			case constants.D2Queue:
-				client.ScheduleDota2Match(tickets1, tickets2)
-			case constants.CS2Queue:
-				client.ScheduleCS2Match(tickets1, tickets2)
-			case constants.LCQueue:
-				client.ScheduleLichessMatch(tickets1, tickets2, matchId)
-			}
-			log.Println("Match scheduled")
-
-			DisconnectAllUsers(matchId)
-			ret := redis.RedisClient.Del(matchId)
-			if ret.Err() != nil {
-				log.Println("Error deleting match from redis: ", ret.Err())
-			}
-			return
+		if allPayed {
+			break
 		}
 	}
 
-	MatchFailedReturnPlayersToMM(queue, matchId, false)
+	ticker.Stop()
+	switch queue {
+	case constants.D2Queue:
+		client.ScheduleDota2Match(tickets1, tickets2)
+	case constants.CS2Queue:
+		client.ScheduleCS2Match(tickets1, tickets2)
+	case constants.LCQueue:
+		_, err := client.ScheduleLichessMatch(tickets1, tickets2, matchId)
+		if err != nil {
+			log.Println("Error scheduling lichess match: ", err)
+			MatchFailedReturnPlayersToMM(queue, matchId, false)
+			return
+		}
+	}
+	log.Println("Match scheduled")
+
+	DisconnectAllUsers(matchId)
+	ret := redis.RedisClient.Del(matchId)
+	if ret.Err() != nil {
+		log.Println("Error deleting match from redis: ", ret.Err())
+	}
 }
 
 func DisconnectAllUsers(matchId string) {
@@ -122,7 +116,7 @@ func DisconnectAllUsers(matchId string) {
 	}
 }
 
-func MatchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, denied bool) {
+func MatchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, denied bool, payment ...bool) {
 	statusMarker := 1
 	if denied {
 		statusMarker = 0
@@ -130,18 +124,24 @@ func MatchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, den
 
 	for _, redisPlayer := range redis.RedisClient.HGetAll(matchId).Val() {
 		var matchPlayer model.MatchPlayer
-
 		if err := json.Unmarshal([]byte(redisPlayer), &matchPlayer); err != nil {
 			log.Println(err)
 			return
 		}
 
-		if matchPlayer.Option > statusMarker && matchPlayer.Payed {
-			redis.RedisClient.ZAdd(constants.GetIndexNameQueue(queue), r.Z{Score: matchPlayer.Score, Member: redisPlayer})
+		if matchPlayer.Option > statusMarker {
+			if len(payment) > 0 && payment[0] && !matchPlayer.Payed {
+				ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Time for payment expired")
+				continue
+			}
+
+			matchPlayer.Option = 0
+			redis.RedisClient.ZAdd(constants.GetIndexNameQueue(queue), r.Z{Score: matchPlayer.Score, Member: matchPlayer})
+			ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Opponent didn't accept the match, back to matchmaking")
 			continue
 		}
 
-		ws.SendMessageToUser(matchPlayer.Id, ws.Error, "Time for payment expired")
+		ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Time for accepting the match expired")
 	}
 
 	redis.RedisClient.Del(matchId)
