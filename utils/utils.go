@@ -25,7 +25,10 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
+	allTickets := append(tickets1, tickets2...)
 	timeToAccept := time.Now().Add(time.Duration(mmCfg.TimeToAccept) * time.Second)
+	ws.SendMatchFoundToPlayers(matchId, allTickets, timeToAccept.Format(time.RFC3339))
+
 	for range ticker.C {
 		if time.Now().After(timeToAccept) {
 			MatchFailedReturnPlayersToMM(queue, matchId, false)
@@ -61,6 +64,11 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 	}
 
 	end := time.Now().Add(time.Duration(mmCfg.TimeToCancelMatch) * time.Second)
+	paymentResponse := ws.PaymentResponse{MatchId: matchId, TimeToPay: end.Format(time.RFC3339)}
+	for _, ticket := range allTickets {
+		ws.SendJSONToUser(ticket.Member.Id, ws.Info, paymentResponse)
+	}
+
 	for range ticker.C {
 		if time.Now().After(end) {
 			ticker.Stop()
@@ -135,12 +143,21 @@ func MatchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, den
 				continue
 			}
 
-			matchPlayer.Option = 0
-			redis.RedisClient.ZAdd(constants.GetIndexNameQueue(queue), r.Z{Score: matchPlayer.Score, Member: matchPlayer})
+			matchPlayer.Option = 1
+			cmd := redis.RedisClient.ZAdd(constants.GetIndexNameQueue(queue), r.Z{Score: matchPlayer.Score, Member: matchPlayer.Marshal()})
+			if cmd.Err() != nil {
+				log.Println("Error adding player to queue: ", cmd.Err())
+				continue
+			}
+
 			ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Opponent didn't accept the match, back to matchmaking")
 			continue
 		}
 
+		if matchPlayer.Option == 0 {
+			ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Match was canceled")
+			continue
+		}
 		ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Time for accepting the match expired")
 	}
 

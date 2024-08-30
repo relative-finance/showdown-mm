@@ -5,8 +5,8 @@ import (
 	"mmf/internal/model"
 )
 
-func SendMatchFoundToPlayers(matchId string, matchTickets []model.Ticket) bool {
-	mess := GenerateMatchFoundResponse(matchTickets, matchId)
+func SendMatchFoundToPlayers(matchId string, matchTickets []model.Ticket, timeToAccept string) bool {
+	mess := GenerateMatchFoundResponse(matchTickets, matchId, timeToAccept)
 
 	for _, ticket := range matchTickets {
 		SendJSONToUser(ticket.Member.Id, Info, mess)

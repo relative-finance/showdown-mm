@@ -7,7 +7,6 @@ import (
 	"mmf/internal/constants"
 	"mmf/internal/model"
 	"mmf/internal/redis"
-	ws "mmf/internal/server/websockets"
 	"mmf/utils"
 	"strconv"
 	"time"
@@ -24,19 +23,21 @@ func EvaluateTickets(config config.MMRConfig, queue constants.QueueType) bool {
 	for _, ticket := range tickets.Val() {
 		var memberData model.MemberData
 		memberRaw := ticket.Member.(string)
-
-		err := json.Unmarshal([]byte(memberRaw), &memberData)
-
-		if err != nil {
+		if err := json.Unmarshal([]byte(memberRaw), &memberData); err != nil {
 			return false
 		}
 
 		gameTickets = append(gameTickets, model.Ticket{Member: memberData, Score: ticket.Score})
 	}
 
+	teamSize := config.TeamSize
+	if queue == constants.LCQueue {
+		teamSize = 1
+	}
+
 	for i := 0; i < len(gameTickets); i++ {
 		// If sliding window is out of bounds, break
-		if i+config.TeamSize*2 > len(gameTickets) {
+		if i+teamSize*2 > len(gameTickets) {
 			break
 		}
 
@@ -64,10 +65,7 @@ func EvaluateTickets(config config.MMRConfig, queue constants.QueueType) bool {
 			}
 			matchId := "match_" + strconv.Itoa(int(time.Now().UnixMilli()))
 			utils.AddMatchToRedis(matchId, tickets1, tickets2, queue)
-			sent := ws.SendMatchFoundToPlayers(matchId, matchTickets)
-			if !sent {
-				return false
-			}
+
 			go utils.WaitingForMatchThread(matchId, queue, tickets1, tickets2)
 			return true
 		}

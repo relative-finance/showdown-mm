@@ -39,17 +39,23 @@ type UserPayment struct {
 }
 
 type MatchFoundResponse struct {
-	MatchId string         `json:"matchId"`
-	TeamA   []model.Ticket `json:"teamA"`
-	TeamB   []model.Ticket `json:"teamB"`
+	MatchId      string         `json:"matchId"`
+	TimeToAccept string         `json:"timeToAccept"`
+	TeamA        []model.Ticket `json:"teamA"`
+	TeamB        []model.Ticket `json:"teamB"`
 }
 
-func GenerateMatchFoundResponse(tickets []model.Ticket, matchId string) MatchFoundResponse {
-	mess := MatchFoundResponse{MatchId: matchId}
+func GenerateMatchFoundResponse(tickets []model.Ticket, matchId string, timeToAccept string) MatchFoundResponse {
+	mess := MatchFoundResponse{MatchId: matchId, TimeToAccept: timeToAccept}
 	mid := len(tickets) / 2
 	mess.TeamA = tickets[:mid]
 	mess.TeamB = tickets[mid:]
 	return mess
+}
+
+type PaymentResponse struct {
+	MatchId   string `json:"matchId"`
+	TimeToPay string `json:"timeToPay"`
 }
 
 type EventType string
