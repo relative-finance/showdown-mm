@@ -18,7 +18,7 @@ type TicketServiceImpl struct {
 func (s *TicketServiceImpl) SubmitTicket(g *gin.Context, submitTicketRequest model.SubmitTicketRequest, queue string) (*model.MemberData, error) {
 	memberData := &model.MemberData{
 		WalletAddress:     submitTicketRequest.WalletAddress,
-		SteamID:           submitTicketRequest.SteamID,
+		Id:                submitTicketRequest.Id,
 		LichessCustomData: submitTicketRequest.LichessCustomData,
 	}
 	resp := s.Redis.ZAdd(constants.GetIndexNameStr(queue), redis.Z{Score: float64(submitTicketRequest.Elo), Member: memberData})

@@ -2,9 +2,7 @@ package handlers
 
 import (
 	"context"
-	"strconv"
 
-	"mmf/internal/model"
 	ws "mmf/internal/server/websockets"
 	"mmf/internal/wires"
 
@@ -18,39 +16,25 @@ func RegisterTicket(router *gin.Engine, ctx context.Context) {
 		tickets.GET("/fetch/:queue", fetchTickets)
 	}
 
-	router.GET("/ws/:queue/:steamId/:walletAddress", wsGet)
+	router.GET("/ws/:queue/:id/:walletAddress", wsGet)
 
 }
 
 func wsGet(c *gin.Context) {
 	queue := c.Param("queue")
-	steamId := c.Param("steamId")
+	id := c.Param("id")
 	walletAddress := c.Param("walletAddress")
-	var lichessData *model.LichessCustomData
-	if queue == "lcqueue" {
-		increment := c.DefaultQuery("increment", "0")
-		time := c.DefaultQuery("time", "5")
-		collateral := c.DefaultQuery("collateral", "showdown")
 
-		incrementInt, err := strconv.Atoi(increment)
-		if err != nil {
-			c.JSON(400, gin.H{"error": "increment must be an integer"})
-			return
-		}
-
-		timeInt, err := strconv.Atoi(time)
-		if err != nil {
-			c.JSON(400, gin.H{"error": "time must be an integer"})
-			return
-		}
-
-		lichessData = &model.LichessCustomData{
-			Increment:  incrementInt,
-			Time:       timeInt,
-			Collateral: model.Collateral(collateral),
-		}
+	if queue == "" || id == "" || walletAddress == "" {
+		c.JSON(400, gin.H{"error": "missing required parameters"})
+		return
 	}
-	ws.StartWebSocket(queue, steamId, walletAddress, lichessData, c)
+
+	if queue == "lcqueue" {
+		ws.StartLichessWebSocket(queue, id, walletAddress, c)
+		return
+	}
+	ws.StartWebSocket(queue, id, walletAddress, c)
 }
 
 func fetchTickets(c *gin.Context) {

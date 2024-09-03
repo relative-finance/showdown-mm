@@ -25,7 +25,7 @@ func calculateMatchQualityTrueSkill(tickets1 []model.Ticket, tickets2 []model.Ti
 	var players1, players2 []trueskill.Player
 
 	for _, ticket := range tickets1 {
-		id, err := strconv.Atoi(ticket.Member.SteamID)
+		id, err := strconv.Atoi(ticket.Member.Id)
 		if err != nil {
 			log.Println(err)
 		}
@@ -35,7 +35,7 @@ func calculateMatchQualityTrueSkill(tickets1 []model.Ticket, tickets2 []model.Ti
 	}
 
 	for _, ticket := range tickets2 {
-		id, err := strconv.Atoi(ticket.Member.SteamID)
+		id, err := strconv.Atoi(ticket.Member.Id)
 		if err != nil {
 			log.Println(err)
 		}

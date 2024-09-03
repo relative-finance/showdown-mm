@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mmf/config"
 	"mmf/internal/constants"
 	"mmf/internal/model"
 	"mmf/internal/redis"
@@ -19,14 +20,19 @@ import (
 	r "github.com/go-redis/redis"
 )
 
-func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 []model.Ticket, tickets2 []model.Ticket, timeToCancelMatch int) {
+func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 []model.Ticket, tickets2 []model.Ticket) {
+	mmCfg := config.GlobalConfig.MMRConfig
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
-	end := time.Now().Add(time.Duration(timeToCancelMatch) * time.Second)
+	allTickets := append(tickets1, tickets2...)
+	timeToAccept := time.Now().Add(time.Duration(mmCfg.TimeToAccept) * time.Second)
+	ws.SendMatchFoundToPlayers(matchId, allTickets, timeToAccept.Format(time.RFC3339))
+
 	for range ticker.C {
-		if time.Now().After(end) {
-			break
+		if time.Now().After(timeToAccept) {
+			MatchFailedReturnPlayersToMM(queue, matchId, false)
+			return
 		}
 
 		allAccepted := true
@@ -44,85 +50,81 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 			}
 		}
 
+		if allAccepted {
+			break
+		}
+	}
+
+	log.Println("Creating match on chain")
+	_, err := createLichessMatchShowdown(tickets1, tickets2, matchId)
+	if err != nil {
+		// logic to return players to matchmaking
+		log.Println("Error while creating match on showdown ", err.Error())
+		return
+	}
+
+	end := time.Now().Add(time.Duration(mmCfg.TimeToCancelMatch) * time.Second)
+	paymentResponse := ws.PaymentResponse{MatchId: matchId, TimeToPay: end.Format(time.RFC3339)}
+	for _, ticket := range allTickets {
+		ws.SendJSONToUser(ticket.Member.Id, ws.Info, paymentResponse)
+	}
+
+	for range ticker.C {
+		if time.Now().After(end) {
+			ticker.Stop()
+			MatchFailedReturnPlayersToMM(queue, matchId, false, true)
+			return
+		}
+
 		allPayed := true
-		if queue == constants.LCQueue && allAccepted {
-			log.Println("Everyone accepted, checking for match on chain")
-			allCreated := true
-			for _, redisPlayer := range redis.RedisClient.HGetAll(matchId).Val() {
-				matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
-
-				if matchPlayer.TxnHash == "" {
-					allCreated = false
-
-					log.Println("Match not created on chain")
-					break
-				}
-			}
-
-			if !allCreated {
-				log.Println("Creating match on chain")
-				hash, err := createLichessMatchShowdown(tickets1, tickets2, matchId)
-
-				if err != nil {
-					log.Println(err.Error())
-					return
-				}
-
-				for _, redisPlayer := range redis.RedisClient.HGetAll(matchId).Val() {
-					matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
-
-					matchPlayer.TxnHash = *hash
-					redis.RedisClient.HSet(matchId, matchPlayer.SteamId, matchPlayer.Marshal())
-				}
-			}
-
+		if queue == constants.LCQueue {
 			for _, redisPlayer := range redis.RedisClient.HGetAll(matchId).Val() {
 				matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
 
 				if !matchPlayer.Payed {
 					allPayed = false
-
-					log.Println("Match not payed for by ", matchPlayer.SteamId)
 					break
 				}
 			}
 		}
 
-		log.Println("All players accepted: ", allAccepted)
-
-		if allAccepted && allPayed {
-			ticker.Stop()
-			switch queue {
-			case constants.D2Queue:
-				client.ScheduleDota2Match(tickets1, tickets2)
-			case constants.CS2Queue:
-				client.ScheduleCS2Match(tickets1, tickets2)
-			case constants.LCQueue:
-				client.ScheduleLichessMatch(tickets1, tickets2, matchId)
-			}
-			log.Println("Match scheduled")
-
-			DisconnectAllUsers(matchId)
-			ret := redis.RedisClient.Del(matchId)
-			if ret.Err() != nil {
-				log.Println("Error deleting match from redis: ", ret.Err())
-			}
-			return
+		if allPayed {
+			break
 		}
 	}
 
-	MatchFailedReturnPlayersToMM(queue, matchId, false)
+	ticker.Stop()
+	switch queue {
+	case constants.D2Queue:
+		client.ScheduleDota2Match(tickets1, tickets2)
+	case constants.CS2Queue:
+		client.ScheduleCS2Match(tickets1, tickets2)
+	case constants.LCQueue:
+		_, err := client.ScheduleLichessMatch(tickets1, tickets2, matchId)
+		if err != nil {
+			log.Println("Error scheduling lichess match: ", err)
+			MatchFailedReturnPlayersToMM(queue, matchId, false)
+			return
+		}
+	}
+	log.Println("Match scheduled")
+
+	DisconnectAllUsers(matchId)
+	ret := redis.RedisClient.Del(matchId)
+	if ret.Err() != nil {
+		log.Println("Error deleting match from redis: ", ret.Err())
+	}
 }
 
 func DisconnectAllUsers(matchId string) {
 	for _, redisPlayer := range redis.RedisClient.HGetAll(matchId).Val() {
 		matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
-		log.Println("Disconnecting user: ", matchPlayer.SteamId)
-		ws.DisconnectUser(matchPlayer.SteamId)
+		log.Println("Disconnecting user: ", matchPlayer.Id)
+		ws.DisconnectUser(matchPlayer.Id)
 	}
 }
 
-func MatchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, denied bool) {
+func MatchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, denied bool, payment ...bool) {
 	statusMarker := 1
 	if denied {
 		statusMarker = 0
@@ -130,18 +132,33 @@ func MatchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, den
 
 	for _, redisPlayer := range redis.RedisClient.HGetAll(matchId).Val() {
 		var matchPlayer model.MatchPlayer
-
 		if err := json.Unmarshal([]byte(redisPlayer), &matchPlayer); err != nil {
 			log.Println(err)
 			return
 		}
 
 		if matchPlayer.Option > statusMarker {
-			redis.RedisClient.ZAdd(constants.GetIndexNameQueue(queue), r.Z{Score: matchPlayer.Score, Member: matchPlayer.SteamId})
+			if len(payment) > 0 && payment[0] && !matchPlayer.Payed {
+				ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Time for payment expired")
+				continue
+			}
+
+			matchPlayer.Option = 1
+			cmd := redis.RedisClient.ZAdd(constants.GetIndexNameQueue(queue), r.Z{Score: matchPlayer.Score, Member: matchPlayer.Marshal()})
+			if cmd.Err() != nil {
+				log.Println("Error adding player to queue: ", cmd.Err())
+				continue
+			}
+
+			ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Opponent didn't accept the match, back to matchmaking")
 			continue
 		}
 
-		ws.DisconnectUser(matchPlayer.SteamId)
+		if matchPlayer.Option == 0 {
+			ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Match was canceled")
+			continue
+		}
+		ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Time for accepting the match expired")
 	}
 
 	redis.RedisClient.Del(matchId)
@@ -162,7 +179,7 @@ type QuickPlayResponse struct {
 func createLichessMatchShowdown(tickets1 []model.Ticket, tickets2 []model.Ticket, matchId string) (*string, error) {
 	if len(tickets1) == 0 || len(tickets2) == 0 {
 		log.Println("Insufficient players to schedule a match")
-		return nil, errors.New("Insufficient players to schedule a match")
+		return nil, errors.New("insufficient players to schedule a match")
 	}
 
 	// Sending team data to players - needs pulling username
@@ -174,17 +191,17 @@ func createLichessMatchShowdown(tickets1 []model.Ticket, tickets2 []model.Ticket
 	var ticket1team, tickets2team Teams
 	for _, ticket := range tickets1 {
 
-		ticket1team.YourTeam = append(ticket1team.YourTeam, ticket.Member.SteamID)
-		tickets2team.Opponent = append(tickets2team.Opponent, ticket.Member.SteamID)
+		ticket1team.YourTeam = append(ticket1team.YourTeam, ticket.Member.Id)
+		tickets2team.Opponent = append(tickets2team.Opponent, ticket.Member.Id)
 	}
 
 	for _, ticket := range tickets2 {
-		ticket1team.Opponent = append(ticket1team.Opponent, ticket.Member.SteamID)
-		tickets2team.YourTeam = append(tickets2team.YourTeam, ticket.Member.SteamID)
+		ticket1team.Opponent = append(ticket1team.Opponent, ticket.Member.Id)
+		tickets2team.YourTeam = append(tickets2team.YourTeam, ticket.Member.Id)
 	}
 
-	player1 := tickets1[0].Member.SteamID // steamId for player1
-	player2 := tickets2[0].Member.SteamID // steamId for player2
+	player1 := tickets1[0].Member.Id // steamId for player1
+	player2 := tickets2[0].Member.Id // steamId for player2
 
 	player1Wallet := tickets1[0].Member.WalletAddress
 	player2Wallet := tickets2[0].Member.WalletAddress
@@ -222,7 +239,7 @@ func createLichessMatchShowdown(tickets1 []model.Ticket, tickets2 []model.Ticket
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Unexpected status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	defer resp.Body.Close()
