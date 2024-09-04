@@ -122,6 +122,11 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 	if ret.Err() != nil {
 		log.Println("Error deleting match from redis: ", ret.Err())
 	}
+
+	cmd := redis.RedisClient.HDel("user_state", tickets1[0].Member.Id, tickets2[0].Member.Id)
+	if cmd.Err() != nil {
+		log.Println("Error deleting user state from redis: ", cmd.Err())
+	}
 }
 
 func DisconnectAllUsers(matchId string) {
@@ -173,11 +178,16 @@ func MatchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, den
 }
 
 type CreateLichessMatchShowdownRequest struct {
-	MatchID       string `json:"match_id"`
-	Player1ID     string `json:"player1_lichess_id"`
-	Player2ID     string `json:"player2_lichess_id"`
-	Player1Wallet string `json:"player1_wallet_address"`
-	Player2Wallet string `json:"player2_wallet_address"`
+	MatchID       string           `json:"match_id"`
+	Player1ID     string           `json:"player1_lichess_id"`
+	Player2ID     string           `json:"player2_lichess_id"`
+	Player1Wallet string           `json:"player1_wallet_address"`
+	Player2Wallet string           `json:"player2_wallet_address"`
+	Collateral    model.Collateral `json:"collateral"`
+	Increment     int              `json:"increment"`
+	Time          int              `json:"time"`
+	Variant       string           `json:"variant"`
+	Rated         bool             `json:"rated"`
 }
 
 type QuickPlayResponse struct {
@@ -220,6 +230,11 @@ func createLichessMatchShowdown(tickets1 []model.Ticket, tickets2 []model.Ticket
 		Player2ID:     player2,
 		Player1Wallet: player1Wallet,
 		Player2Wallet: player2Wallet,
+		Collateral:    tickets1[0].Member.LichessCustomData.Collateral,
+		Increment:     tickets1[0].Member.LichessCustomData.Increment,
+		Time:          tickets1[0].Member.LichessCustomData.Time,
+		Variant:       "blitz",
+		Rated:         false,
 	}
 
 	showdownApi := os.Getenv("SHOWDOWN_RELAY")

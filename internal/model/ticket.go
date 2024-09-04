@@ -23,8 +23,8 @@ type MemberData struct {
 type Collateral string
 
 const (
-	Showdown Collateral = "showdown"
-	Practice Collateral = "practice"
+	SP   Collateral = "SP"
+	SUSD Collateral = "SUSD"
 )
 
 type LichessCustomData struct {
