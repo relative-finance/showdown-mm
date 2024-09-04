@@ -85,12 +85,22 @@ func checkTransactionOnChain(userConfirmation *UserPayment, ticket *model.Member
 		return false
 	}
 
-	// if params[0].(string) != userConfirmation.MatchId {
-	// 	log.Println("Invalid match id")
-	// 	return false
-	// }
+	matchId, ok := params[0].(string)
+	if !ok {
+		log.Println("Invalid match id")
+		return false
+	}
+	if matchId != userConfirmation.MatchId {
+		log.Println("Invalid match id")
+		return false
+	}
 
-	if params[1].(string) != ticket.Id {
+	id, ok := params[1].(string)
+	if !ok {
+		log.Println("Invalid username")
+		return false
+	}
+	if id != ticket.Id {
 		log.Println("Invalid username")
 		return false
 	}
