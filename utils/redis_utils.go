@@ -27,11 +27,14 @@ func AddMatchToRedis(matchId string, tickets1 []model.Ticket, tickets2 []model.T
 		redis.RedisClient.ZRem(constants.GetIndexNameQueue(queue), memberJSON)
 	}
 
+	userState := model.UserGlobalState{State: model.MatchFound, MatchId: matchId}
+
 	matchPlayer := model.MatchPlayer{Id: "", Score: 0, Option: 1, Team: 1}
 	for _, ticket := range tickets1 {
 		matchPlayer.Id = ticket.Member.Id
 		matchPlayer.Score = ticket.Score
 		redis.RedisClient.HSet(matchId, ticket.Member.Id, matchPlayer.Marshal())
+		redis.RedisClient.HSet("user_state", ticket.Member.Id, userState.Marshal())
 	}
 
 	matchPlayer.Team = 2
@@ -39,5 +42,6 @@ func AddMatchToRedis(matchId string, tickets1 []model.Ticket, tickets2 []model.T
 		matchPlayer.Id = ticket.Member.Id
 		matchPlayer.Score = ticket.Score
 		redis.RedisClient.HSet(matchId, ticket.Member.Id, matchPlayer.Marshal())
+		redis.RedisClient.HSet("user_state", ticket.Member.Id, userState.Marshal())
 	}
 }

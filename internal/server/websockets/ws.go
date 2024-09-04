@@ -32,12 +32,29 @@ type ShowdownApiResponse struct {
 var userConnections = make(map[string]*websocket.Conn)
 var userConnectionsMutex sync.Mutex
 
+func getUserState(id string) *model.UserGlobalState {
+	state := redis.RedisClient.HGet("user_state", id)
+	if state.Err() == nil && state.Val() != "" {
+		return model.UnmarshalUserGlobalState([]byte(state.Val()))
+	}
+	return &model.UserGlobalState{State: model.NoState}
+}
+
 func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		return
 	}
 	defer conn.Close()
+	userState := getUserState(id)
+	if userState != nil && userState.State != model.NoState {
+		if err := conn.WriteJSON(map[string]interface{}{
+			"eventType": Info,
+			"message":   userState,
+		}); err != nil {
+			log.Println(err)
+		}
+	}
 
 	userConnectionsMutex.Lock()
 	userConnections[id] = conn
@@ -56,6 +73,14 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 			}
 
 			redis.RedisClient.ZRem(constants.GetIndexNameStr(game), memberJSON)
+		}
+
+		if userState != nil && userState.State != model.NoState {
+			cmd := redis.RedisClient.HSet("user_state", id, userState.Marshal())
+			if cmd.Err() != nil {
+				log.Println("Error saving user state")
+				log.Println(cmd.Err())
+			}
 		}
 	}()
 
@@ -112,6 +137,7 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 				log.Println("Error submitting ticket")
 				log.Println(err.Error())
 			}
+
 			conn.WriteJSON(GetMessage(Info, "Joined queue"))
 		case LeaveQueue:
 			cmd := redis.RedisClient.ZRem(constants.GetIndexNameStr(game), memberData)
@@ -146,6 +172,9 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 			matchPlayer.Payed = true
 			redis.RedisClient.HSet(payload.MatchId, id, matchPlayer.Marshal())
 			conn.WriteJSON(GetMessage(Info, "Payment processed"))
+			userState.State = model.Paid
+			userState.MatchId = payload.MatchId
+			redis.RedisClient.HSet("user_state", id, userState.Marshal())
 		case SendOption:
 			var payload *UserResponse
 			if err := mapstructure.Decode(userResponse.Payload, &payload); err != nil || payload == nil {
@@ -163,6 +192,13 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 			matchPlayer.Option = payload.Option
 			redis.RedisClient.HSet(payload.MatchId, id, matchPlayer.Marshal())
 			conn.WriteJSON(GetMessage(Info, "Send option successful"))
+			if payload.Option == 2 {
+				userState.State = model.MatchAccepted
+				userState.MatchId = payload.MatchId
+				redis.RedisClient.HSet("user_state", id, userState.Marshal())
+			} else {
+				redis.RedisClient.HDel(payload.MatchId, id)
+			}
 		default:
 			conn.WriteJSON(GetMessage(Error, "Invalid message type"))
 		}

@@ -63,6 +63,14 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 		return
 	}
 
+	userState := model.UserGlobalState{State: model.PaymentPending, MatchId: matchId}
+	for _, ticket := range allTickets {
+		cmd := redis.RedisClient.HSet("user_state", ticket.Member.Id, userState.Marshal())
+		if cmd.Err() != nil {
+			log.Println("Error setting user state to payment pending: ", cmd.Err())
+		}
+	}
+
 	end := time.Now().Add(time.Duration(mmCfg.TimeToCancelMatch) * time.Second)
 	paymentResponse := ws.PaymentResponse{MatchId: matchId, TimeToPay: end.Format(time.RFC3339)}
 	for _, ticket := range allTickets {
