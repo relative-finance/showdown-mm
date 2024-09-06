@@ -59,8 +59,9 @@ var UserStateValue = map[string]UserState{
 }
 
 type UserGlobalState struct {
-	State   UserState `json:"state"`
-	MatchId string    `json:"matchId,omitempty"`
+	State      UserState   `json:"state"`
+	MatchId    string      `json:"matchId,omitempty"`
+	MemberData *MemberData `json:"memberData,omitempty"`
 }
 
 func (ugs *UserGlobalState) Marshal() []byte {

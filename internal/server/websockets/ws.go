@@ -61,6 +61,10 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 	userConnectionsMutex.Unlock()
 
 	var memberData *model.MemberData
+	if userState.State != model.NoState && userState.MemberData != nil {
+		memberData = userState.MemberData
+	}
+
 	defer func() {
 		userConnectionsMutex.Lock()
 		defer userConnectionsMutex.Unlock()
@@ -156,6 +160,11 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 				continue
 			}
 
+			if memberData == nil {
+				conn.WriteJSON(GetMessage(Error, "Error getting member data"))
+				continue
+			}
+
 			payed := checkTransactionOnChain(payload, memberData)
 			if !payed {
 				conn.WriteJSON(GetMessage(Error, "Error processing payment"))
@@ -174,6 +183,7 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 			conn.WriteJSON(GetMessage(Info, "Payment processed"))
 			userState.State = model.Paid
 			userState.MatchId = payload.MatchId
+			userState.MemberData = memberData
 			redis.RedisClient.HSet("user_state", id, userState.Marshal())
 		case SendOption:
 			var payload *UserResponse
