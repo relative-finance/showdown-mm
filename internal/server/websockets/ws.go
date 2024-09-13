@@ -205,6 +205,7 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 			if payload.Option == 2 {
 				userState.State = model.MatchAccepted
 				userState.MatchId = payload.MatchId
+				userState.MemberData = memberData
 				redis.RedisClient.HSet("user_state", id, userState.Marshal())
 			} else {
 				redis.RedisClient.HDel(payload.MatchId, id)
