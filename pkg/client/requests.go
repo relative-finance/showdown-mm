@@ -60,6 +60,7 @@ type CreateLichessMatchRequest struct {
 	PairAt        int     `json:"pairAt"`            // Time in seconds to wait before pairing
 	StartClocksAt int     `json:"startClocksAt"`     // Time in seconds to wait before starting clocks
 	Webhook       string  `json:"webhook,omitempty"` // Webhook to be called after the match ends
+	Instant       bool    `json:"instant,omitempty"` // Instant to be called after the match ends
 }
 
 type StartLichessShowdownMatchRequest struct {
