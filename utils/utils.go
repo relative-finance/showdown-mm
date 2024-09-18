@@ -84,19 +84,19 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 			return
 		}
 
-		allPayed := true
+		allPaid := true
 		if queue == constants.LCQueue {
 			for _, redisPlayer := range redis.RedisClient.HGetAll(matchId).Val() {
 				matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
 
-				if !matchPlayer.Payed {
-					allPayed = false
+				if !matchPlayer.Paid {
+					allPaid = false
 					break
 				}
 			}
 		}
 
-		if allPayed {
+		if allPaid {
 			break
 		}
 	}
@@ -111,8 +111,8 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 		_, err := client.ScheduleLichessMatch(tickets1, tickets2, matchId)
 		if err != nil {
 			log.Println("Error scheduling lichess match: ", err)
-			MatchFailedReturnPlayersToMM(queue, matchId, false)
-			return
+			// MatchFailedReturnPlayersToMM(queue, matchId, false)
+			// return
 		}
 	}
 	log.Println("Match scheduled")
@@ -151,7 +151,7 @@ func MatchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, den
 		}
 
 		if matchPlayer.Option > statusMarker {
-			if len(payment) > 0 && payment[0] && !matchPlayer.Payed {
+			if len(payment) > 0 && payment[0] && !matchPlayer.Paid {
 				ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Time for payment expired")
 				continue
 			}
