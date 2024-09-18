@@ -111,8 +111,8 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 		_, err := client.ScheduleLichessMatch(tickets1, tickets2, matchId)
 		if err != nil {
 			log.Println("Error scheduling lichess match: ", err)
-			// MatchFailedReturnPlayersToMM(queue, matchId, false)
-			// return
+			MatchFailedReturnPlayersToMM(queue, matchId, false)
+			return
 		}
 	}
 	log.Println("Match scheduled")
