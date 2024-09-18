@@ -15,7 +15,7 @@ type MatchPlayer struct {
 	Team    int     `json:"team"`
 	Score   float64 `json:"score"`
 	TxnHash string  `json:"txnHash"`
-	Payed   bool    `json:"payed"`
+	Paid    bool    `json:"paid"`
 	ApiKey  string
 }
 

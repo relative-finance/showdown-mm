@@ -79,7 +79,7 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 			redis.RedisClient.ZRem(constants.GetIndexNameStr(game), memberJSON)
 		}
 
-		if userState != nil && userState.State != model.NoState {
+		if userState != nil && userState.State != model.NoState && userState.State != model.Paid {
 			cmd := redis.RedisClient.HSet("user_state", id, userState.Marshal())
 			if cmd.Err() != nil {
 				log.Println("Error saving user state")
@@ -165,8 +165,8 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 				continue
 			}
 
-			payed := checkTransactionOnChain(payload, memberData)
-			if !payed {
+			paid := checkTransactionOnChain(payload, memberData)
+			if !paid {
 				conn.WriteJSON(GetMessage(Error, "Error processing payment"))
 				continue
 			}
@@ -178,7 +178,7 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 				continue
 			}
 
-			matchPlayer.Payed = true
+			matchPlayer.Paid = true
 			redis.RedisClient.HSet(payload.MatchId, id, matchPlayer.Marshal())
 			conn.WriteJSON(GetMessage(Info, "Payment processed"))
 			userState.State = model.Paid
@@ -310,8 +310,8 @@ func StartWebSocket(game string, steamId string, walletAddress string, c *gin.Co
 			}
 
 			matchPlayer.TxnHash = userConfirmation.TxnHash
-			matchPlayer.Payed = checkTransactionOnChain(&userConfirmation, memberData)
-			if !matchPlayer.Payed {
+			matchPlayer.Paid = checkTransactionOnChain(&userConfirmation, memberData)
+			if !matchPlayer.Paid {
 				continue
 			}
 			redis.RedisClient.HSet(userResponse.MatchId, steamId, matchPlayer.Marshal())
