@@ -10,6 +10,7 @@ import (
 	"mmf/pkg/external"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -40,26 +41,47 @@ func getUserState(id string) *model.UserGlobalState {
 	return &model.UserGlobalState{State: model.NoState}
 }
 
+func isUserInMM(userState *model.UserGlobalState) bool {
+	return userState != nil && userState.State != model.NoState
+}
+
 func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		return
 	}
 	defer conn.Close()
-	userState := getUserState(id)
-	if userState != nil && userState.State != model.NoState {
-		if err := conn.WriteJSON(map[string]interface{}{
-			"eventType": Info,
-			"message":   userState,
-		}); err != nil {
+
+	// Set pong handler to reset read deadline
+	conn.SetPongHandler(func(appData string) error {
+		conn.SetReadDeadline(time.Now().Add(20 * time.Second)) // Reset read deadline when pong is received
+
+		if err := conn.WriteMessage(websocket.TextMessage, []byte("pong")); err != nil {
 			log.Println(err)
 		}
+		return nil
+	})
+
+	userState := getUserState(id)
+	isUserInMmVar := isUserInMM(userState)
+	if isUserInMmVar {
+		// TODO: Include both the teams info
+		SendJSON(conn, MatchState, *userState)
+	} else {
+		SendJSON(conn, MatchState, nil)
 	}
+
+	// Set up ping-pong handling
+	// Send pings every 10 seconds, expecting a pong response within 5 seconds
+	go sendPings(conn)
 
 	userConnectionsMutex.Lock()
 	userConnections[id] = conn
 	userConnectionsMutex.Unlock()
 
+	// TODO: Remove the use of memberData as this is only set when user joins the queue
+	// if user gets disconnected, memberData is getting reset
+	// Using id and walletAddress of the user
 	var memberData *model.MemberData
 	if userState.State != model.NoState && userState.MemberData != nil {
 		memberData = userState.MemberData
@@ -69,6 +91,9 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 		userConnectionsMutex.Lock()
 		defer userConnectionsMutex.Unlock()
 		delete(userConnections, id)
+		// member data is only set when user joins queue
+		// If user gets disconnected, this'll clear the user details
+		// TODO: handle it better
 		if memberData != nil {
 			memberJSON, err := json.Marshal(memberData)
 			if err != nil {
@@ -79,13 +104,13 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 			redis.RedisClient.ZRem(constants.GetIndexNameStr(game), memberJSON)
 		}
 
-		if userState != nil && userState.State != model.NoState && userState.State != model.Paid {
-			cmd := redis.RedisClient.HSet("user_state", id, userState.Marshal())
-			if cmd.Err() != nil {
-				log.Println("Error saving user state")
-				log.Println(cmd.Err())
-			}
-		}
+		// if userState != nil && userState.State != model.NoState && userState.State != model.Paid {
+		// 	cmd := redis.RedisClient.HSet("user_state", id, userState.Marshal())
+		// 	if cmd.Err() != nil {
+		// 		log.Println("Error saving user state")
+		// 		log.Println(cmd.Err())
+		// 	}
+		// }
 	}()
 
 	var eloData *model.EloData
@@ -104,15 +129,15 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 		eloData = &model.EloData{Elo: float64(rating)}
 	}
 
-	conn.WriteJSON(GetMessage(Info, "Hello, "+id))
 	waitForNewMsg := true
 	for {
 		_, mess, err := conn.ReadMessage()
+		stringifiedMessage := string(mess)
 		if err != nil {
 			return
 		}
 
-		if !waitForNewMsg {
+		if !waitForNewMsg || stringifiedMessage == "ping" {
 			continue
 		}
 
@@ -127,6 +152,11 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 			var payload *model.LichessCustomData
 			if err := mapstructure.Decode(userResponse.Payload, &payload); err != nil || payload == nil {
 				conn.WriteJSON(GetMessage(Error, "Error parsing payload"))
+				continue
+			}
+			userState := getUserState(id)
+			if isUserInMM(userState) {
+				SendJSON(conn, Error, "User already part of Queue")
 				continue
 			}
 
@@ -154,14 +184,10 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 
 			conn.WriteJSON(GetMessage(Info, "Left queue"))
 		case SendPayment:
+			// TODO: Add event validation
 			var payload *UserPayment
 			if err := mapstructure.Decode(userResponse.Payload, &payload); err != nil || payload == nil {
 				conn.WriteJSON(GetMessage(Error, "Error parsing payload"))
-				continue
-			}
-
-			if memberData == nil {
-				conn.WriteJSON(GetMessage(Error, "Error getting member data"))
 				continue
 			}
 
@@ -186,6 +212,7 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 			userState.MemberData = memberData
 			redis.RedisClient.HSet("user_state", id, userState.Marshal())
 		case SendOption:
+			// TODO: Add event validation
 			var payload *UserResponse
 			if err := mapstructure.Decode(userResponse.Payload, &payload); err != nil || payload == nil {
 				conn.WriteJSON(GetMessage(Error, "Error parsing payload"))

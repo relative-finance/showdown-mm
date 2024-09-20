@@ -62,6 +62,7 @@ type UserGlobalState struct {
 	State      UserState   `json:"state"`
 	MatchId    string      `json:"matchId,omitempty"`
 	MemberData *MemberData `json:"memberData,omitempty"`
+	ExpiryTime int64       `json:"expiryTime,omitempty"`
 }
 
 func (ugs *UserGlobalState) Marshal() []byte {

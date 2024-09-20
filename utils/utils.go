@@ -27,11 +27,19 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 
 	allTickets := append(tickets1, tickets2...)
 	timeToAccept := time.Now().Add(time.Duration(mmCfg.TimeToAccept) * time.Second)
-	ws.SendMatchFoundToPlayers(matchId, allTickets, timeToAccept.Format(time.RFC3339))
+
+	userState := model.UserGlobalState{State: model.MatchFound, MatchId: matchId, ExpiryTime: timeToAccept.Unix()}
+	for _, ticket := range allTickets {
+		if err := SetUserStateInRedis(ticket.Member.Id, &userState); err != nil {
+			log.Println("Error setting user state to match found: ", err)
+		}
+	}
+
+	ws.SendMatchFoundToPlayers(matchId, allTickets, timeToAccept.Unix())
 
 	for range ticker.C {
 		if time.Now().After(timeToAccept) {
-			MatchFailedReturnPlayersToMM(queue, matchId, false)
+			MatchFailedReturnPlayersToMM(queue, matchId, false, false)
 			return
 		}
 
@@ -41,7 +49,7 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 
 			if matchPlayer.Option == 0 {
 				ticker.Stop()
-				MatchFailedReturnPlayersToMM(queue, matchId, true)
+				MatchFailedReturnPlayersToMM(queue, matchId, false, false)
 				return
 			}
 
@@ -62,17 +70,16 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 		log.Println("Error while creating match on showdown ", err.Error())
 		return
 	}
+	end := time.Now().Add(time.Duration(mmCfg.TimeToCancelMatch) * time.Second)
 
-	userState := model.UserGlobalState{State: model.PaymentPending, MatchId: matchId}
+	userState = model.UserGlobalState{State: model.PaymentPending, MatchId: matchId, ExpiryTime: end.Unix()}
 	for _, ticket := range allTickets {
-		cmd := redis.RedisClient.HSet("user_state", ticket.Member.Id, userState.Marshal())
-		if cmd.Err() != nil {
-			log.Println("Error setting user state to payment pending: ", cmd.Err())
+		if err := SetUserStateInRedis(ticket.Member.Id, &userState); err != nil {
+			log.Println("Error setting user state to payment pending: ", err)
 		}
 	}
 
-	end := time.Now().Add(time.Duration(mmCfg.TimeToCancelMatch) * time.Second)
-	paymentResponse := ws.PaymentResponse{MatchId: matchId, TimeToPay: end.Format(time.RFC3339)}
+	paymentResponse := ws.PaymentResponse{MatchId: matchId, ExpiryTime: end.Unix(), State: model.PaymentPending}
 	for _, ticket := range allTickets {
 		ws.SendJSONToUser(ticket.Member.Id, ws.Info, paymentResponse)
 	}
@@ -80,7 +87,7 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 	for range ticker.C {
 		if time.Now().After(end) {
 			ticker.Stop()
-			MatchFailedReturnPlayersToMM(queue, matchId, false, true)
+			MatchFailedReturnPlayersToMM(queue, matchId, true, false)
 			return
 		}
 
@@ -109,9 +116,10 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 		client.ScheduleCS2Match(tickets1, tickets2)
 	case constants.LCQueue:
 		_, err := client.ScheduleLichessMatch(tickets1, tickets2, matchId)
+		// TODO: Cancel the match øn the contract
 		if err != nil {
 			log.Println("Error scheduling lichess match: ", err)
-			MatchFailedReturnPlayersToMM(queue, matchId, false)
+			MatchFailedReturnPlayersToMM(queue, matchId, false, true)
 			return
 		}
 	}
@@ -137,12 +145,10 @@ func DisconnectAllUsers(matchId string) {
 	}
 }
 
-func MatchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, denied bool, payment ...bool) {
-	statusMarker := 1
-	if denied {
-		statusMarker = 0
-	}
-
+func MatchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, isPaymentFlow bool, isPostPayment bool) {
+	var playerIdsToClear []string
+	var matchPlayersToAddToQueue []model.MatchPlayer
+	// TODO: store this info in DB to track user's reluctance to pay/accept matches
 	for _, redisPlayer := range redis.RedisClient.HGetAll(matchId).Val() {
 		var matchPlayer model.MatchPlayer
 		if err := json.Unmarshal([]byte(redisPlayer), &matchPlayer); err != nil {
@@ -150,31 +156,48 @@ func MatchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, den
 			return
 		}
 
-		if matchPlayer.Option > statusMarker {
-			if len(payment) > 0 && payment[0] && !matchPlayer.Paid {
-				ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Time for payment expired")
-				continue
+		if isPaymentFlow {
+			// flow after user accepts the match and payment is in progress
+			if !matchPlayer.Paid {
+				ws.SendMessageToUser(matchPlayer.Id, ws.Removed, "Time for payment expired")
+			} else {
+				// Users that paid will be added to the queue
+				// TODO: Notify showdown api to cancel the match
+				matchPlayersToAddToQueue = append(matchPlayersToAddToQueue, matchPlayer)
 			}
-
-			matchPlayer.Option = 1
-			cmd := redis.RedisClient.ZAdd(constants.GetIndexNameQueue(queue), r.Z{Score: matchPlayer.Score, Member: matchPlayer.Marshal()})
-			if cmd.Err() != nil {
-				log.Println("Error adding player to queue: ", cmd.Err())
-				continue
+		} else {
+			switch matchPlayer.Option {
+			case 0:
+				ws.SendMessageToUser(matchPlayer.Id, ws.Removed, "You've declined the match")
+			case 1:
+				ws.SendMessageToUser(matchPlayer.Id, ws.Removed, "Time for accepting the match expired")
+			case 2:
+				matchPlayersToAddToQueue = append(matchPlayersToAddToQueue, matchPlayer)
 			}
-
-			ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Opponent didn't accept the match, back to matchmaking")
-			continue
 		}
-
-		if matchPlayer.Option == 0 {
-			ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Match was canceled")
-			continue
-		}
-		ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Time for accepting the match expired")
+		playerIdsToClear = append(playerIdsToClear, matchPlayer.Id)
 	}
 
-	redis.RedisClient.Del(matchId)
+	ClearMatchData(matchId, &playerIdsToClear)
+
+	// Add them back to queue after clearing match data
+	for _, matchPlayer := range matchPlayersToAddToQueue {
+		// TODO: this is not working as lichessCustomData is not being added
+		// LichessCustomData is needed for users to be matched
+		cmd := redis.RedisClient.ZAdd(constants.GetIndexNameQueue(queue), r.Z{Score: matchPlayer.Score, Member: matchPlayer.Marshal()})
+		if cmd.Err() != nil {
+			log.Println("Error adding player to queue: ", cmd.Err())
+			continue
+		}
+		if isPostPayment {
+			// happens when schedule lichess match fails
+			ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Couldn't create match, match is cancelled - back to matchmaking")
+		} else {
+			ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Opponent didn't accept the match, back to matchmaking")
+		}
+
+	}
+
 }
 
 type CreateLichessMatchShowdownRequest struct {
