@@ -45,3 +45,40 @@ func AddMatchToRedis(matchId string, tickets1 []model.Ticket, tickets2 []model.T
 		redis.RedisClient.HSet("user_state", ticket.Member.Id, userState.Marshal())
 	}
 }
+
+func SetUserStateInRedis(userId string, userState *model.UserGlobalState) error {
+	cmd := redis.RedisClient.HSet("user_state", userId, userState.Marshal())
+	if cmd.Err() != nil {
+		return cmd.Err()
+	}
+	return nil
+}
+
+func SetMatchInfoInRedis(matchId, userId string, matchPlayer *model.MatchPlayer) error {
+	cmd := redis.RedisClient.HSet(matchId, userId, matchPlayer.Marshal())
+	if cmd.Err() != nil {
+		return cmd.Err()
+	}
+	return nil
+}
+
+func ClearMatchData(matchId string, playerIds *[]string) error {
+	cmd := redis.RedisClient.Del(matchId)
+	if cmd.Err() != nil {
+		return cmd.Err()
+	}
+	for _, playerId := range *playerIds {
+		if err := DeleteUserState(playerId); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func DeleteUserState(userId string) error {
+	cmd := redis.RedisClient.HDel("user_state", userId)
+	if cmd.Err() != nil {
+		return cmd.Err()
+	}
+	return nil
+}

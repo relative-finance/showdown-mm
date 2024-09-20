@@ -39,14 +39,15 @@ type UserPayment struct {
 }
 
 type MatchFoundResponse struct {
-	MatchId      string         `json:"matchId"`
-	TimeToAccept string         `json:"timeToAccept"`
-	TeamA        []model.Ticket `json:"teamA"`
-	TeamB        []model.Ticket `json:"teamB"`
+	MatchId    string          `json:"matchId"`
+	ExpiryTime int64           `json:"expiryTime"`
+	TeamA      []model.Ticket  `json:"teamA"`
+	TeamB      []model.Ticket  `json:"teamB"`
+	State      model.UserState `json:"state"`
 }
 
-func GenerateMatchFoundResponse(tickets []model.Ticket, matchId string, timeToAccept string) MatchFoundResponse {
-	mess := MatchFoundResponse{MatchId: matchId, TimeToAccept: timeToAccept}
+func GenerateMatchFoundResponse(tickets []model.Ticket, matchId string, expiryTime int64) MatchFoundResponse {
+	mess := MatchFoundResponse{MatchId: matchId, ExpiryTime: expiryTime, State: model.MatchFound}
 	mid := len(tickets) / 2
 	mess.TeamA = tickets[:mid]
 	mess.TeamB = tickets[mid:]
@@ -54,16 +55,19 @@ func GenerateMatchFoundResponse(tickets []model.Ticket, matchId string, timeToAc
 }
 
 type PaymentResponse struct {
-	MatchId   string `json:"matchId"`
-	TimeToPay string `json:"timeToPay"`
+	MatchId    string          `json:"matchId"`
+	ExpiryTime int64           `json:"expiryTime"`
+	State      model.UserState `json:"state"`
 }
 
 type EventType string
 
 const (
-	Info    EventType = "INFO"
-	Error   EventType = "ERROR"
-	Success EventType = "SUCCESS"
+	Info       EventType = "INFO"
+	Error      EventType = "ERROR"
+	Success    EventType = "SUCCESS"
+	Removed    EventType = "REMOVED_FROM_QUEUE"
+	MatchState EventType = "MATCH_STATE"
 )
 
 type Message struct {
