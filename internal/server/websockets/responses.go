@@ -46,6 +46,11 @@ type MatchFoundResponse struct {
 	State      model.UserState `json:"state"`
 }
 
+type BackToMatchMakingResponse struct {
+	Message string          `json:"message"`
+	State   model.UserState `json:"state"`
+}
+
 func GenerateMatchFoundResponse(tickets []model.Ticket, matchId string, expiryTime int64) MatchFoundResponse {
 	mess := MatchFoundResponse{MatchId: matchId, ExpiryTime: expiryTime, State: model.MatchFound}
 	mid := len(tickets) / 2

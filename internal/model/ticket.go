@@ -1,6 +1,8 @@
 package model
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 type SubmitTicketRequest struct {
 	Id                string             `json:"steamId"`
@@ -11,7 +13,7 @@ type SubmitTicketRequest struct {
 
 type Ticket struct {
 	Member MemberData `json:"member"`
-	Score  float64    `json:"elo"`
+	Score  float64    `json:"score"`
 }
 
 type MemberData struct {

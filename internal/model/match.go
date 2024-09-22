@@ -10,13 +10,15 @@ type EloData struct {
 }
 
 type MatchPlayer struct {
-	Id      string  `json:"id"`
-	Option  int     `json:"option"`
-	Team    int     `json:"team"`
-	Score   float64 `json:"score"`
-	TxnHash string  `json:"txnHash"`
-	Paid    bool    `json:"paid"`
-	ApiKey  string
+	Id                string  `json:"id"`
+	Option            int     `json:"option"`
+	Team              int     `json:"team"`
+	Score             float64 `json:"score"`
+	TxnHash           string  `json:"txnHash"`
+	Paid              bool    `json:"paid"`
+	ApiKey            string
+	WalletAddress     string             `json:"walletAddress"`
+	LichessCustomData *LichessCustomData `json:"lichessCustomData"`
 }
 
 func (mp *MatchPlayer) Marshal() []byte {
@@ -48,6 +50,7 @@ const (
 	MatchAccepted  UserState = "matchAccepted"
 	PaymentPending UserState = "paymentPending"
 	Paid           UserState = "paid"
+	RejoinQueue    UserState = "rejoinQueue"
 )
 
 var UserStateValue = map[string]UserState{

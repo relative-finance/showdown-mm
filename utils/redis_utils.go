@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"mmf/internal/constants"
 	"mmf/internal/model"
@@ -29,10 +30,11 @@ func AddMatchToRedis(matchId string, tickets1 []model.Ticket, tickets2 []model.T
 
 	userState := model.UserGlobalState{State: model.MatchFound, MatchId: matchId}
 
-	matchPlayer := model.MatchPlayer{Id: "", Score: 0, Option: 1, Team: 1}
+	matchPlayer := model.MatchPlayer{Id: "", Score: 0, Option: 1, Team: 1, LichessCustomData: tickets1[0].Member.LichessCustomData, WalletAddress: ""}
 	for _, ticket := range tickets1 {
 		matchPlayer.Id = ticket.Member.Id
 		matchPlayer.Score = ticket.Score
+		matchPlayer.WalletAddress = ticket.Member.WalletAddress
 		redis.RedisClient.HSet(matchId, ticket.Member.Id, matchPlayer.Marshal())
 		redis.RedisClient.HSet("user_state", ticket.Member.Id, userState.Marshal())
 	}
@@ -41,6 +43,7 @@ func AddMatchToRedis(matchId string, tickets1 []model.Ticket, tickets2 []model.T
 	for _, ticket := range tickets2 {
 		matchPlayer.Id = ticket.Member.Id
 		matchPlayer.Score = ticket.Score
+		matchPlayer.WalletAddress = ticket.Member.WalletAddress
 		redis.RedisClient.HSet(matchId, ticket.Member.Id, matchPlayer.Marshal())
 		redis.RedisClient.HSet("user_state", ticket.Member.Id, userState.Marshal())
 	}
@@ -81,4 +84,19 @@ func DeleteUserState(userId string) error {
 		return cmd.Err()
 	}
 	return nil
+}
+
+// TODO: Move to utils
+func GetMatchPlayerInfo(matchId, userId string) (*model.MatchPlayer, error) {
+	cmd := redis.RedisClient.HGet(matchId, userId)
+	if cmd.Err() != nil {
+		return nil, cmd.Err()
+	}
+	matchPlayer := model.UnmarshalMatchPlayer([]byte(cmd.Val()))
+	if matchPlayer == nil {
+		err := fmt.Errorf("player not found MatchId: %s UserId %s", matchId, userId)
+		return nil, err
+	}
+
+	return matchPlayer, nil
 }
