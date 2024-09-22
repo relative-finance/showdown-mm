@@ -2,7 +2,6 @@ package utils
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"mmf/internal/constants"
 	"mmf/internal/model"
@@ -84,19 +83,4 @@ func DeleteUserState(userId string) error {
 		return cmd.Err()
 	}
 	return nil
-}
-
-// TODO: Move to utils
-func GetMatchPlayerInfo(matchId, userId string) (*model.MatchPlayer, error) {
-	cmd := redis.RedisClient.HGet(matchId, userId)
-	if cmd.Err() != nil {
-		return nil, cmd.Err()
-	}
-	matchPlayer := model.UnmarshalMatchPlayer([]byte(cmd.Val()))
-	if matchPlayer == nil {
-		err := fmt.Errorf("player not found MatchId: %s UserId %s", matchId, userId)
-		return nil, err
-	}
-
-	return matchPlayer, nil
 }
