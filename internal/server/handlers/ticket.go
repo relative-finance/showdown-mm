@@ -31,7 +31,7 @@ func wsGet(c *gin.Context) {
 	}
 
 	if queue == "lcqueue" {
-		ws.StartLichessWebSocket(id, walletAddress, c)
+		ws.StartLichessWebSocket(queue, id, walletAddress, c)
 		return
 	}
 	ws.StartWebSocket(queue, id, walletAddress, c)

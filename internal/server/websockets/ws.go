@@ -61,8 +61,7 @@ func getMatchPlayerInfo(matchId, userId string) (*model.MatchPlayer, error) {
 	return matchPlayer, nil
 }
 
-func StartLichessWebSocket(id string, walletAddress string, c *gin.Context) {
-	game := "lcqueue"
+func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		return
