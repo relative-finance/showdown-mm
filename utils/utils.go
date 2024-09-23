@@ -12,12 +12,11 @@ import (
 	"mmf/internal/model"
 	"mmf/internal/redis"
 	ws "mmf/internal/server/websockets"
+	"mmf/internal/wires"
 	"mmf/pkg/client"
 	"net/http"
 	"os"
 	"time"
-
-	r "github.com/go-redis/redis"
 )
 
 func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 []model.Ticket, tickets2 []model.Ticket) {
@@ -178,23 +177,33 @@ func MatchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, isP
 		playerIdsToClear = append(playerIdsToClear, matchPlayer.Id)
 	}
 
+	log.Println("Clearing Match ID:", matchId, " Queue: ", queue)
 	ClearMatchData(matchId, &playerIdsToClear)
 
 	// Add them back to queue after clearing match data
 	for _, matchPlayer := range matchPlayersToAddToQueue {
-		// TODO: this is not working as lichessCustomData is not being added
-		// LichessCustomData is needed for users to be matched
-		cmd := redis.RedisClient.ZAdd(constants.GetIndexNameQueue(queue), r.Z{Score: matchPlayer.Score, Member: matchPlayer.Marshal()})
-		if cmd.Err() != nil {
-			log.Println("Error adding player to queue: ", cmd.Err())
+		_, err := wires.Instance.TicketService.SubmitTicket(model.SubmitTicketRequest{
+			Id:                matchPlayer.Id,
+			Elo:               matchPlayer.Score,
+			WalletAddress:     matchPlayer.WalletAddress,
+			LichessCustomData: matchPlayer.LichessCustomData,
+		}, constants.GetIndexNameQueue(queue))
+
+		if err != nil {
+			log.Println("Error adding player to queue: ", err)
 			continue
+		}
+		message := ws.BackToMatchMakingResponse{
+			Message: "",
+			State:   model.RejoinQueue,
 		}
 		if isPostPayment {
 			// happens when schedule lichess match fails
-			ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Couldn't create match, match is cancelled - back to matchmaking")
+			message.Message = "Couldn't create match, match is cancelled - back to matchmaking"
 		} else {
-			ws.SendMessageToUser(matchPlayer.Id, ws.Info, "Opponent didn't accept the match, back to matchmaking")
+			message.Message = "Opponent didn't accept the match, back to matchmaking"
 		}
+		ws.SendJSONToUser(matchPlayer.Id, ws.Info, message)
 
 	}
 

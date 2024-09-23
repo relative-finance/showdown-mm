@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"mmf/config"
-	"mmf/internal/model"
 	"net/http"
 	"os"
 	"strings"
@@ -41,7 +40,7 @@ const abiJSON = `[{
 	"type": "function"
 }]`
 
-func checkTransactionOnChain(userConfirmation *UserPayment, ticket *model.MemberData) bool {
+func checkTransactionOnChain(userConfirmation *UserPayment, userId string) bool {
 	txHash := common.HexToHash(userConfirmation.TxnHash)
 
 	client, err := ethclient.Dial(config.GlobalConfig.EthRpc.URL)
@@ -100,7 +99,7 @@ func checkTransactionOnChain(userConfirmation *UserPayment, ticket *model.Member
 		log.Println("Invalid username")
 		return false
 	}
-	if id != ticket.Id {
+	if id != userId {
 		log.Println("Invalid username")
 		return false
 	}

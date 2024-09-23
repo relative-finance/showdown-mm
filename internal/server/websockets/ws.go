@@ -2,6 +2,7 @@ package ws
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"mmf/internal/constants"
 	"mmf/internal/model"
@@ -43,6 +44,21 @@ func getUserState(id string) *model.UserGlobalState {
 
 func isUserInMM(userState *model.UserGlobalState) bool {
 	return userState != nil && userState.State != model.NoState
+}
+
+// TODO: use the func in utils
+func getMatchPlayerInfo(matchId, userId string) (*model.MatchPlayer, error) {
+	cmd := redis.RedisClient.HGet(matchId, userId)
+	if cmd.Err() != nil {
+		return nil, cmd.Err()
+	}
+	matchPlayer := model.UnmarshalMatchPlayer([]byte(cmd.Val()))
+	if matchPlayer == nil {
+		err := fmt.Errorf("player not found MatchId: %s UserId %s", matchId, userId)
+		return nil, err
+	}
+
+	return matchPlayer, nil
 }
 
 func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.Context) {
@@ -91,18 +107,8 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 		userConnectionsMutex.Lock()
 		defer userConnectionsMutex.Unlock()
 		delete(userConnections, id)
-		// member data is only set when user joins queue
-		// If user gets disconnected, this'll clear the user details
-		// TODO: handle it better
-		if memberData != nil {
-			memberJSON, err := json.Marshal(memberData)
-			if err != nil {
-				log.Println("Error serializing MemberData:", err)
-				return
-			}
 
-			redis.RedisClient.ZRem(constants.GetIndexNameStr(game), memberJSON)
-		}
+		wires.Instance.TicketService.DeleteTicket(game, id)
 
 		// if userState != nil && userState.State != model.NoState && userState.State != model.Paid {
 		// 	cmd := redis.RedisClient.HSet("user_state", id, userState.Marshal())
@@ -129,7 +135,6 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 		eloData = &model.EloData{Elo: float64(rating)}
 	}
 
-	waitForNewMsg := true
 	for {
 		_, mess, err := conn.ReadMessage()
 		stringifiedMessage := string(mess)
@@ -137,7 +142,7 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 			return
 		}
 
-		if !waitForNewMsg || stringifiedMessage == "ping" {
+		if stringifiedMessage == "ping" {
 			continue
 		}
 
@@ -147,6 +152,8 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 			continue
 		}
 
+		userState := getUserState(id)
+
 		switch userResponse.Type {
 		case JoinQueue:
 			var payload *model.LichessCustomData
@@ -154,13 +161,13 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 				conn.WriteJSON(GetMessage(Error, "Error parsing payload"))
 				continue
 			}
-			userState := getUserState(id)
+
 			if isUserInMM(userState) {
 				SendJSON(conn, Error, "User already part of Queue")
 				continue
 			}
 
-			memberData, err = wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{
+			memberData, err = wires.Instance.TicketService.SubmitTicket(model.SubmitTicketRequest{
 				Id:                id,
 				Elo:               eloData.Elo,
 				WalletAddress:     walletAddress,
@@ -174,10 +181,8 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 
 			conn.WriteJSON(GetMessage(Info, "Joined queue"))
 		case LeaveQueue:
-			cmd := redis.RedisClient.ZRem(constants.GetIndexNameStr(game), memberData)
-			if cmd.Err() != nil {
-				log.Println("Error removing ticket from queue")
-				log.Println(cmd.Err())
+			if err := wires.Instance.TicketService.DeleteTicket(game, id); err != nil {
+				log.Println("error leaving queue", err)
 				conn.WriteJSON(GetMessage(Error, "Error leaving queue"))
 				continue
 			}
@@ -191,15 +196,14 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 				continue
 			}
 
-			paid := checkTransactionOnChain(payload, memberData)
+			paid := checkTransactionOnChain(payload, id)
 			if !paid {
 				conn.WriteJSON(GetMessage(Error, "Error processing payment"))
 				continue
 			}
 
-			redisPlayer := redis.RedisClient.HGet(payload.MatchId, id).Val()
-			matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
-			if matchPlayer == nil {
+			matchPlayer, err := getMatchPlayerInfo(payload.MatchId, id)
+			if err != nil {
 				conn.WriteJSON(GetMessage(Error, "Error getting match player"))
 				continue
 			}
@@ -219,9 +223,8 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 				continue
 			}
 
-			redisPlayer := redis.RedisClient.HGet(payload.MatchId, id).Val()
-			matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
-			if matchPlayer == nil {
+			matchPlayer, err := getMatchPlayerInfo(payload.MatchId, id)
+			if err != nil {
 				conn.WriteJSON(GetMessage(Error, "Error getting match player"))
 				continue
 			}
@@ -294,7 +297,7 @@ func StartWebSocket(game string, steamId string, walletAddress string, c *gin.Co
 		eloData = external.GetDataFromRelay(steamId)
 	}
 
-	memberData, err = wires.Instance.TicketService.SubmitTicket(c, model.SubmitTicketRequest{
+	memberData, err = wires.Instance.TicketService.SubmitTicket(model.SubmitTicketRequest{
 		Id:            steamId,
 		Elo:           eloData.Elo,
 		WalletAddress: walletAddress,
@@ -337,7 +340,7 @@ func StartWebSocket(game string, steamId string, walletAddress string, c *gin.Co
 			}
 
 			matchPlayer.TxnHash = userConfirmation.TxnHash
-			matchPlayer.Paid = checkTransactionOnChain(&userConfirmation, memberData)
+			matchPlayer.Paid = checkTransactionOnChain(&userConfirmation, steamId)
 			if !matchPlayer.Paid {
 				continue
 			}

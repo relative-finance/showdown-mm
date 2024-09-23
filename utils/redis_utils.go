@@ -29,10 +29,11 @@ func AddMatchToRedis(matchId string, tickets1 []model.Ticket, tickets2 []model.T
 
 	userState := model.UserGlobalState{State: model.MatchFound, MatchId: matchId}
 
-	matchPlayer := model.MatchPlayer{Id: "", Score: 0, Option: 1, Team: 1}
+	matchPlayer := model.MatchPlayer{Id: "", Score: 0, Option: 1, Team: 1, LichessCustomData: tickets1[0].Member.LichessCustomData, WalletAddress: ""}
 	for _, ticket := range tickets1 {
 		matchPlayer.Id = ticket.Member.Id
 		matchPlayer.Score = ticket.Score
+		matchPlayer.WalletAddress = ticket.Member.WalletAddress
 		redis.RedisClient.HSet(matchId, ticket.Member.Id, matchPlayer.Marshal())
 		redis.RedisClient.HSet("user_state", ticket.Member.Id, userState.Marshal())
 	}
@@ -41,6 +42,7 @@ func AddMatchToRedis(matchId string, tickets1 []model.Ticket, tickets2 []model.T
 	for _, ticket := range tickets2 {
 		matchPlayer.Id = ticket.Member.Id
 		matchPlayer.Score = ticket.Score
+		matchPlayer.WalletAddress = ticket.Member.WalletAddress
 		redis.RedisClient.HSet(matchId, ticket.Member.Id, matchPlayer.Marshal())
 		redis.RedisClient.HSet("user_state", ticket.Member.Id, userState.Marshal())
 	}

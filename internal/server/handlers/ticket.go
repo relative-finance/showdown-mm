@@ -39,6 +39,6 @@ func wsGet(c *gin.Context) {
 
 func fetchTickets(c *gin.Context) {
 	queue := c.Param("queue")
-	tickets := wires.Instance.TicketService.GetAllTickets(c, queue)
+	tickets := wires.Instance.TicketService.GetAllTickets(queue)
 	c.JSON(200, tickets)
 }
