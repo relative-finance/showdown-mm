@@ -215,9 +215,9 @@ type CreateLichessMatchShowdownRequest struct {
 	Player2ID     string           `json:"player2_lichess_id"`
 	Player1Wallet string           `json:"player1_wallet_address"`
 	Player2Wallet string           `json:"player2_wallet_address"`
-	Collateral    model.Collateral `json:"collateral"`
+	Collateral    model.Collateral `json:"collateral_token"`
 	Increment     int              `json:"increment"`
-	Time          int              `json:"time"`
+	Time          int              `json:"limit"`
 	Variant       string           `json:"variant"`
 	Rated         bool             `json:"rated"`
 }
