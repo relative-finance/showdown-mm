@@ -61,7 +61,7 @@ func getMatchPlayerInfo(matchId, userId string) (*model.MatchPlayer, error) {
 	return matchPlayer, nil
 }
 
-func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.Context) {
+func StartLichessWebSocket(game string, id string, c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		return
@@ -119,15 +119,26 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 		// }
 	}()
 
+	walletAddress, err := idToWallet(id)
+	if err != nil {
+		log.Println("Error getting wallet address")
+		log.Println(err)
+		err := conn.WriteJSON(GetMessage(Error, "Error getting wallet address"))
+		if err != nil {
+			log.Println(err)
+		}
+		return
+	}
+
 	var eloData *model.EloData
-	apiKey, err := usernameToKey(id)
+	showdownUser, err := idToApiKey(id)
 	if err != nil {
 		log.Println("Error getting token from showdown api ")
 		log.Println(err.Error())
 		return
 	}
 
-	rating, err := external.GetGlicko(*apiKey, "blitz") // TODO: Make it so that elo is fetched for correct game mode
+	rating, err := external.GetGlicko(showdownUser.LichessToken, "blitz") // TODO: Make it so that elo is fetched for correct game mode
 	if err != nil {
 		log.Println("Error getting elo from lichess, using default elo 1500")
 		eloData = &model.EloData{Elo: 1500}
@@ -170,7 +181,7 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 			memberData, err = wires.Instance.TicketService.SubmitTicket(model.SubmitTicketRequest{
 				Id:                id,
 				Elo:               eloData.Elo,
-				WalletAddress:     walletAddress,
+				WalletAddress:     walletAddress.WalletAddress,
 				LichessCustomData: payload,
 			}, game)
 			if err != nil {
@@ -196,7 +207,7 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 				continue
 			}
 
-			paid := checkTransactionOnChain(payload, id)
+			paid := checkTransactionOnChain(payload, showdownUser.LichessId)
 			if !paid {
 				conn.WriteJSON(GetMessage(Error, "Error processing payment"))
 				continue
@@ -277,7 +288,7 @@ func StartWebSocket(game string, steamId string, walletAddress string, c *gin.Co
 	var eloData *model.EloData
 	switch game {
 	case "lcqueue":
-		apiKey, err := usernameToKey(steamId)
+		apiKey, err := idToApiKey(steamId)
 
 		if err != nil {
 			log.Println("Error getting token from showdown api ")
@@ -285,7 +296,7 @@ func StartWebSocket(game string, steamId string, walletAddress string, c *gin.Co
 			return
 		}
 
-		rating, err := external.GetGlicko(*apiKey, "blitz") // TODO: Make it so that elo is fetched for correct game mode
+		rating, err := external.GetGlicko(apiKey.LichessToken, "blitz") // TODO: Make it so that elo is fetched for correct game mode
 		if err != nil {
 			log.Println("Error getting elo from lichess, using default elo 1500")
 			eloData = &model.EloData{Elo: 1500}

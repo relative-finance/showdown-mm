@@ -107,11 +107,11 @@ func checkTransactionOnChain(userConfirmation *UserPayment, userId string) bool 
 	return true
 }
 
-func usernameToKey(username string) (*string, error) {
+func idToApiKey(userId string) (*ShowdownTokenResponse, error) {
 	showdownApi := os.Getenv("SHOWDOWN_API")
 	showdownKey := os.Getenv("SHOWDOWN_API_KEY")
 
-	url := fmt.Sprintf("%s/get_lichess_token?userID=%s", showdownApi, username)
+	url := fmt.Sprintf("%s/get_lichess_token?showdownUserID=%s", showdownApi, userId)
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -138,12 +138,63 @@ func usernameToKey(username string) (*string, error) {
 		return nil, err
 	}
 
-	var apiResponse ShowdownApiResponse
+	var apiResponse ShowdownApiBulkResponse
 	err = json.Unmarshal(body, &apiResponse)
-
 	if err != nil {
 		return nil, err
 	}
 
-	return &apiResponse.Token, nil
+	user, ok := apiResponse[userId]
+	if !ok {
+		return nil, fmt.Errorf("no lichess token found for user %s", userId)
+	}
+	return &user, nil
 }
+
+func idToWallet(userId string) (*WalletAddressResponse, error) {
+	showdownRelay := os.Getenv("SHOWDOWN_RELAY")
+
+	url := fmt.Sprintf("%s/user/info_batch?showdownUserID=%s", showdownRelay, userId)
+	client := &http.Client{}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var apiResponse []WalletAddressResponse
+	if err = json.Unmarshal(body, &apiResponse); err != nil {
+		return nil, err
+	}
+
+	if len(apiResponse) == 0 {
+		return nil, fmt.Errorf("no wallet address found for user %s", userId)
+	}
+
+	return &apiResponse[0], nil
+}
+
+type ShowdownTokenResponse struct {
+	LichessId    string `json:"lichessId"`
+	LichessToken string `json:"lichessToken"`
+}
+
+type WalletAddressResponse struct {
+	WalletAddress string `json:"walletAddress"`
+}
+
+type ShowdownApiBulkResponse map[string]ShowdownTokenResponse

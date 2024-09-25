@@ -69,14 +69,11 @@ func sendPings(conn *websocket.Conn) {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				log.Println("Error sending ping:", err)
-				conn.Close()
-				return
-			}
+	for range ticker.C {
+		if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			log.Println("Error sending ping:", err)
+			conn.Close()
+			return
 		}
 	}
 }
