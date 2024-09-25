@@ -61,7 +61,7 @@ func getMatchPlayerInfo(matchId, userId string) (*model.MatchPlayer, error) {
 	return matchPlayer, nil
 }
 
-func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.Context) {
+func StartLichessWebSocket(game string, id string, c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		return
@@ -119,6 +119,17 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 		// }
 	}()
 
+	walletAddress, err := idToWallet(id)
+	if err != nil {
+		log.Println("Error getting wallet address")
+		log.Println(err)
+		err := conn.WriteJSON(GetMessage(Error, "Error getting wallet address"))
+		if err != nil {
+			log.Println(err)
+		}
+		return
+	}
+
 	var eloData *model.EloData
 	showdownUser, err := idToApiKey(id)
 	if err != nil {
@@ -170,7 +181,7 @@ func StartLichessWebSocket(game string, id string, walletAddress string, c *gin.
 			memberData, err = wires.Instance.TicketService.SubmitTicket(model.SubmitTicketRequest{
 				Id:                id,
 				Elo:               eloData.Elo,
-				WalletAddress:     walletAddress,
+				WalletAddress:     walletAddress.WalletAddress,
 				LichessCustomData: payload,
 			}, game)
 			if err != nil {
