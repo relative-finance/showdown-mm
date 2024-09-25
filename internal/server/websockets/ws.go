@@ -219,6 +219,8 @@ func StartLichessWebSocket(game string, id string, c *gin.Context) {
 				continue
 			}
 
+			log.Printf("Player %s has Paid for Match: %s\n", id, payload.MatchId)
+
 			matchPlayer.Paid = true
 			redis.RedisClient.HSet(payload.MatchId, id, matchPlayer.Marshal())
 			conn.WriteJSON(GetMessage(Info, "Payment processed"))

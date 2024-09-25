@@ -65,6 +65,7 @@ func EvaluateTickets(config config.MMRConfig, queue constants.QueueType) bool {
 			}
 			matchId := "match_" + strconv.Itoa(int(time.Now().UnixMilli()))
 			utils.AddMatchToRedis(matchId, tickets1, tickets2, queue)
+			log.Printf("Created a match %s for players - %s and %s \n", matchId, tickets1[0].Member.Id, tickets2[0].Member.Id)
 
 			go utils.WaitingForMatchThread(matchId, queue, tickets1, tickets2)
 			return true
