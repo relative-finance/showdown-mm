@@ -190,8 +190,8 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 		},
 		Rated:         false,
 		Rules:         []Rules{},
-		PairAt:        int(time.Now().Add(1 * time.Minute).UnixMilli()),
-		StartClocksAt: int(time.Now().Add(6 * time.Minute).UnixMilli()),
+		PairAt:        int(time.Now().Add(30 * time.Second).UnixMilli()),
+		StartClocksAt: int(time.Now().Add(1 * time.Minute).UnixMilli()),
 		Webhook:       fmt.Sprint(os.Getenv("WEBHOOK_ENDPOINT"), "/", matchId),
 		Instant:       true,
 	}
