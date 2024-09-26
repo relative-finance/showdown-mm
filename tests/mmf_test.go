@@ -44,7 +44,7 @@ func setup() {
 		},
 		MMRConfig: config.MMRConfig{
 			Mode:              "glicko",
-			Interval:          "5",
+			Interval:          5,
 			TeamSize:          1,
 			Treshold:          0.8,
 			TimeToCancelMatch: 15,

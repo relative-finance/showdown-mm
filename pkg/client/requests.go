@@ -1,5 +1,10 @@
 package client
 
+import (
+	"mmf/config"
+	"mmf/internal/model"
+)
+
 type LobbyConfig struct {
 	GameName     string `json:"gameName"`
 	ServerRegion int    `json:"serverRegion"`
@@ -131,4 +136,14 @@ var ColorValue = map[string]Color{
 	"white":  White,
 	"black":  Black,
 	"random": Random,
+}
+
+type TestPlayerRequest struct {
+	Elo               float64                  `json:"elo"`
+	LichessCustomData *model.LichessCustomData `json:"lichessCustomData"`
+}
+
+type TestMMRRequest struct {
+	Players          []TestPlayerRequest `json:"players"`
+	config.MMRConfig `json:",inline"`
 }
