@@ -3,9 +3,10 @@ package constants
 type QueueType string
 
 const (
-	CS2Queue QueueType = "cs2queue"
-	D2Queue  QueueType = "d2queue"
-	LCQueue  QueueType = "lcqueue"
+	CS2Queue    QueueType = "cs2queue"
+	D2Queue     QueueType = "d2queue"
+	LCQueue     QueueType = "lcqueue"
+	LCQueueTest QueueType = "lcqueue_test"
 )
 
 func GetQueueType(queue string) QueueType {
@@ -16,6 +17,8 @@ func GetQueueType(queue string) QueueType {
 		return D2Queue
 	case "lcqueue":
 		return LCQueue
+	case "lcqueue_test":
+		return LCQueueTest
 	default:
 		return ""
 	}

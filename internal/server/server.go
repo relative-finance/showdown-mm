@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"log"
-	"strconv"
 	"time"
 
 	"mmf/config"
@@ -60,13 +59,8 @@ func CORSMiddleware() gin.HandlerFunc {
 }
 
 func InitCrawler(config config.MMRConfig) bool {
-	intv, err := strconv.Atoi(config.Interval)
-	if err != nil {
-		log.Println("Error converting interval to int")
-		return false
-	}
 
-	ticker := time.NewTicker(time.Duration(intv) * time.Second)
+	ticker := time.NewTicker(time.Duration(config.Interval) * time.Second)
 	quit := make(chan struct{})
 	go func() bool {
 		for {

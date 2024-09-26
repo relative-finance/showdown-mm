@@ -8,7 +8,7 @@ import (
 
 func StartCrawler(config config.MMRConfig) bool {
 	for _, queue := range constants.GetAllQueueTypes() {
-		calculation.EvaluateTickets(config, queue)
+		calculation.EvaluateTickets(config, queue, nil)
 	}
 	return true
 }

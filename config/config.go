@@ -20,9 +20,10 @@ type ServerConfig struct {
 
 type MMRConfig struct {
 	Mode              string
-	Interval          string
+	Interval          int
 	TeamSize          int
 	Treshold          float64
+	Range             int
 	TimeToCancelMatch int
 	TimeToAccept      int
 }
@@ -46,6 +47,11 @@ func NewConfig() *Config {
 		db = 0
 	}
 
+	interval, err := strconv.Atoi(readEnvVar("MMR_INTERVAL"))
+	if err != nil {
+		interval = 5 // default
+	}
+
 	teamSize, err := strconv.Atoi(readEnvVar("MMR_TEAM_SIZE"))
 	if err != nil {
 		teamSize = 5 // default
@@ -66,6 +72,11 @@ func NewConfig() *Config {
 		timeToAccept = 30 // default
 	}
 
+	rangeInt, err := strconv.Atoi(readEnvVar("MMR_RANGE"))
+	if err != nil {
+		rangeInt = 100 // default
+	}
+
 	GlobalConfig = &Config{
 		Redis: RedisConfig{
 			Host:     readEnvVar("REDIS_HOST"),
@@ -78,11 +89,12 @@ func NewConfig() *Config {
 		},
 		MMRConfig: MMRConfig{
 			Mode:              readEnvVar("MMR_MODE"),
-			Interval:          readEnvVar("MMR_INTERVAL"),
+			Interval:          interval,
 			TeamSize:          teamSize,
 			Treshold:          treshold,
 			TimeToCancelMatch: timeToCancelMatch,
 			TimeToAccept:      timeToAccept,
+			Range:             rangeInt,
 		},
 		EthRpc: EthRpcConfig{
 			URL: readEnvVar("ETH_RPC_URL"),

@@ -2,18 +2,20 @@ package calculation
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"mmf/config"
 	"mmf/internal/constants"
 	"mmf/internal/model"
 	"mmf/internal/redis"
+	"mmf/pkg/client"
 	"mmf/utils"
 	"strconv"
 	"time"
 )
 
-func EvaluateTickets(config config.MMRConfig, queue constants.QueueType) bool {
-	var gameTickets []model.Ticket
+func EvaluateTickets(config config.MMRConfig, queue constants.QueueType, testData *[]client.TestPairResponse) bool {
+	gameBuckets := make(map[string][]model.Ticket)
 	tickets := redis.RedisClient.ZRangeWithScores(constants.GetIndexNameQueue(queue), 0, -1)
 	log.Print(tickets)
 	if len(tickets.Val()) < config.TeamSize*2 {
@@ -27,7 +29,15 @@ func EvaluateTickets(config config.MMRConfig, queue constants.QueueType) bool {
 			return false
 		}
 
-		gameTickets = append(gameTickets, model.Ticket{Member: memberData, Score: ticket.Score})
+		if queue == constants.LCQueue || queue == constants.LCQueueTest {
+			if memberData.LichessCustomData == nil {
+				continue
+			}
+			key := fmt.Sprintf("%d_%d_%s", memberData.LichessCustomData.Time, memberData.LichessCustomData.Increment, memberData.LichessCustomData.Collateral)
+			gameBuckets[key] = append(gameBuckets[key], model.Ticket{Member: memberData, Score: ticket.Score})
+		} else {
+			gameBuckets["all"] = append(gameBuckets["all"], model.Ticket{Member: memberData, Score: ticket.Score})
+		}
 	}
 
 	teamSize := config.TeamSize
@@ -35,44 +45,37 @@ func EvaluateTickets(config config.MMRConfig, queue constants.QueueType) bool {
 		teamSize = 1
 	}
 
-	for i := 0; i < len(gameTickets); i++ {
-		// If sliding window is out of bounds, break
-		if i+teamSize*2 > len(gameTickets) {
-			break
-		}
-
-		// If the difference between the highest and lowest in sliding window MMR is too high, skip
-		if gameTickets[i+config.TeamSize*2-1].Score-gameTickets[i].Score > 100 { //TODO: make this value dynamic based off the mmr range
-			continue
-		}
-
-		matchTickets := gameTickets[i : i+config.TeamSize*2]
-		tickets1, tickets2 := getTeams(matchTickets)
-		matchQuality := getMatchQuality(tickets1, tickets2, config.Mode)
-		if matchQuality > config.Treshold {
-			if queue == constants.LCQueue {
-				var lcData1, lcData2 *model.LichessCustomData
-				lcData1 = tickets1[0].Member.LichessCustomData
-				lcData2 = tickets2[0].Member.LichessCustomData
-
-				if lcData1 == nil || lcData2 == nil {
-					continue
-				}
-
-				if lcData1.Time != lcData2.Time || lcData1.Increment != lcData2.Increment || lcData1.Collateral != lcData2.Collateral {
-					continue
-				}
+	for _, gameTickets := range gameBuckets {
+		for i := 0; i < len(gameTickets); i++ {
+			// If sliding window is out of bounds, break
+			if i+teamSize*2 > len(gameTickets) {
+				break
 			}
-			matchId := "match_" + strconv.Itoa(int(time.Now().UnixMilli()))
-			utils.AddMatchToRedis(matchId, tickets1, tickets2, queue)
-			log.Printf("Created a match %s for players - %s and %s \n", matchId, tickets1[0].Member.Id, tickets2[0].Member.Id)
 
-			go utils.WaitingForMatchThread(matchId, queue, tickets1, tickets2)
-			return true
+			// If the difference between the highest and lowest in sliding window MMR is too high, skip
+			if gameTickets[i+config.TeamSize*2-1].Score-gameTickets[i].Score > float64(config.Range) { //TODO: make this value dynamic based off the mmr range
+				continue
+			}
+
+			matchTickets := gameTickets[i : i+config.TeamSize*2]
+			tickets1, tickets2 := getTeams(matchTickets)
+			matchQuality := getMatchQuality(tickets1, tickets2, config.Mode)
+			if matchQuality > config.Treshold {
+				if testData == nil {
+					matchId := "match_" + strconv.Itoa(int(time.Now().UnixMilli()))
+					utils.AddMatchToRedis(matchId, tickets1, tickets2, queue)
+
+					go utils.WaitingForMatchThread(matchId, queue, tickets1, tickets2)
+				} else {
+					*testData = append(*testData, client.TestPairResponse{Team1: tickets1, Team2: tickets2})
+				}
+
+				i++
+			}
 		}
 	}
 
-	return false
+	return true
 }
 
 func getTeams(tickets []model.Ticket) ([]model.Ticket, []model.Ticket) {
