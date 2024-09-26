@@ -142,8 +142,6 @@ func ScheduleCS2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 }
 
 func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matchId string) (*CreateLichessMatchRequest, error) {
-	log.Println("Scheduling Lichess match")
-
 	if len(tickets1) == 0 || len(tickets2) == 0 {
 		log.Println("Insufficient players to schedule a match")
 		return nil, errors.New("insufficient players to schedule a match")
@@ -192,8 +190,8 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 		},
 		Rated:         false,
 		Rules:         []Rules{},
-		PairAt:        int(time.Now().Add(1 * time.Minute).UnixMilli()),
-		StartClocksAt: int(time.Now().Add(6 * time.Minute).UnixMilli()),
+		PairAt:        int(time.Now().Add(30 * time.Second).UnixMilli()),
+		StartClocksAt: int(time.Now().Add(1 * time.Minute).UnixMilli()),
 		Webhook:       fmt.Sprint(os.Getenv("WEBHOOK_ENDPOINT"), "/", matchId),
 		Instant:       true,
 	}

@@ -23,6 +23,7 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 	mmCfg := config.GlobalConfig.MMRConfig
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
+	matchInfoLog := fmt.Sprintf("Queue: %s, MatchId: %s, Player1: %s, Player2: %s", queue, matchId, tickets1[0].Member.Id, tickets2[0].Member.Id)
 
 	allTickets := append(tickets1, tickets2...)
 	timeToAccept := time.Now().Add(time.Duration(mmCfg.TimeToAccept) * time.Second)
@@ -38,6 +39,7 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 
 	for range ticker.C {
 		if time.Now().After(timeToAccept) {
+			log.Println("Players failed to accept in time ", matchInfoLog)
 			MatchFailedReturnPlayersToMM(queue, matchId, false, false)
 			return
 		}
@@ -48,6 +50,7 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 
 			if matchPlayer.Option == 0 {
 				ticker.Stop()
+				log.Printf("Player %s did not accept - %s \n", matchPlayer.Id, matchInfoLog)
 				MatchFailedReturnPlayersToMM(queue, matchId, false, false)
 				return
 			}
@@ -62,7 +65,7 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 		}
 	}
 
-	log.Println("Creating match on chain")
+	log.Println("Creating match on chain ", matchInfoLog)
 	_, err := createLichessMatchShowdown(tickets1, tickets2, matchId)
 	if err != nil {
 		// logic to return players to matchmaking
@@ -86,6 +89,7 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 	for range ticker.C {
 		if time.Now().After(end) {
 			ticker.Stop()
+			log.Println("Players failed to pay in time ", matchInfoLog)
 			MatchFailedReturnPlayersToMM(queue, matchId, true, false)
 			return
 		}
@@ -114,6 +118,7 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 	case constants.CS2Queue:
 		client.ScheduleCS2Match(tickets1, tickets2)
 	case constants.LCQueue:
+		log.Println("Players paid, scheduling lichess match ", matchInfoLog)
 		_, err := client.ScheduleLichessMatch(tickets1, tickets2, matchId)
 		// TODO: Cancel the match øn the contract
 		if err != nil {
@@ -122,7 +127,7 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 			return
 		}
 	}
-	log.Println("Match scheduled")
+	log.Println("Match scheduled successfully - disconnecting users", matchInfoLog)
 
 	DisconnectAllUsers(matchId)
 	ret := redis.RedisClient.Del(matchId)
