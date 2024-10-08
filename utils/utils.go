@@ -261,15 +261,16 @@ func createLichessMatchShowdown(tickets1 []model.Ticket, tickets2 []model.Ticket
 	player1Wallet := tickets1[0].Member.WalletAddress
 	player2Wallet := tickets2[0].Member.WalletAddress
 
+	time, increment, collateral := client.FindTimeIncrAndColl(tickets1[0], tickets2[0])
 	showdownReq := &CreateLichessMatchShowdownRequest{
 		MatchID:       matchId,
 		Player1ID:     player1,
 		Player2ID:     player2,
 		Player1Wallet: player1Wallet,
 		Player2Wallet: player2Wallet,
-		Collateral:    tickets1[0].Member.LichessCustomData.Collateral,
-		Increment:     tickets1[0].Member.LichessCustomData.Increment,
-		Time:          tickets1[0].Member.LichessCustomData.Time,
+		Collateral:    collateral,
+		Increment:     increment,
+		Time:          time,
 		Variant:       "blitz",
 		Rated:         false,
 	}
