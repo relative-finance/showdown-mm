@@ -1,0 +1,17 @@
+version: "3"
+services:
+  mmf:
+    build: ../
+    container_name: mmf
+    restart: always
+    env_file:
+      - ../.env
+    networks:
+      - showdown-network  
+    ports:
+      - "${HOST_PORT}:9876"
+    command: go run ./cmd/main.go
+
+networks:
+  showdown-network:
+    external: true
