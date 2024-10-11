@@ -1,0 +1,23 @@
+version: "3"
+services:
+  mmf:
+    build: ../
+    image: relative-fi/mmf
+    container_name: mmf
+    restart: always
+    env_file:
+      - ../.env
+    networks:
+      - showdown-network  
+    ports:
+      - "9876:9876"
+    command: go run ./cmd/main.go
+#    develop:
+#      watch:
+#        - action: sync+restart
+#          path: ../
+#          target: /app
+
+networks:
+  showdown-network:
+    external: true
