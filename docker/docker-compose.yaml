@@ -1,15 +1,5 @@
 version: "3"
 services:
-  redis:
-    image: redis:latest
-    container_name: redis-mmf
-    networks:
-      # - d2api_default
-      - cs2-middleware_mmf_network
-    ports:
-      - "6378:6379"
-    restart: always
-
   mmf:
     build: ../
     image: relative-fi/mmf
@@ -18,11 +8,9 @@ services:
     env_file:
       - ../.env
     networks:
-      - cs2-middleware_mmf_network
+      - showdown-network  
     ports:
       - "9876:9876"
-    depends_on:
-      - redis
     command: go run ./cmd/main.go
 #    develop:
 #      watch:
@@ -31,5 +19,5 @@ services:
 #          target: /app
 
 networks:
-  cs2-middleware_mmf_network:
-    driver: bridge
+  showdown-network:
+    external: true
