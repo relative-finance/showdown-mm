@@ -8,11 +8,9 @@ services:
     env_file:
       - ../.env
     networks:
-      - showdown-network  # Using only showdown-network now
+      - showdown-network  
     ports:
       - "9876:9876"
-    depends_on:
-      - redis  # Assuming the Redis service is available in showdown-network
     command: go run ./cmd/main.go
 #    develop:
 #      watch:
