@@ -136,9 +136,9 @@ func lichessEvaluate(tickets []model.Ticket, testData *[]client.TestPairResponse
 
 				if testData == nil {
 					matchId := "match_" + strconv.Itoa(int(time.Now().UnixMilli()))
-					utils.AddMatchToRedis(matchId, []model.Ticket{player, otherPlayer}, nil, constants.LCQueue)
+					utils.AddMatchToRedis(matchId, []model.Ticket{player}, []model.Ticket{otherPlayer}, constants.LCQueue)
 
-					go utils.WaitingForMatchThread(matchId, constants.LCQueue, []model.Ticket{player, otherPlayer}, nil)
+					go utils.WaitingForMatchThread(matchId, constants.LCQueue, []model.Ticket{player}, []model.Ticket{otherPlayer})
 					return true
 				} else {
 					*testData = append(*testData, client.TestPairResponse{Team1: []model.Ticket{player}, Team2: []model.Ticket{otherPlayer}})
