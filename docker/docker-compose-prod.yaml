@@ -9,7 +9,7 @@ services:
     networks:
       - showdown-network  
     ports:
-      - "9876:9876"
+      - "${HOST_PORT}:9876"
     command: go run ./cmd/main.go
 
 networks:
