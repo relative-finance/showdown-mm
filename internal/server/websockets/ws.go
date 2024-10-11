@@ -167,15 +167,24 @@ func StartLichessWebSocket(game string, id string, c *gin.Context) {
 
 		switch userResponse.Type {
 		case JoinQueue:
-			var payload *model.LichessCustomData
+			var payload []model.LichessCustomData
 			if err := mapstructure.Decode(userResponse.Payload, &payload); err != nil || payload == nil {
 				conn.WriteJSON(GetMessage(Error, "Error parsing payload"))
+				continue
+			}
+
+			if length := len(payload); length == 0 || length > 3 {
+				conn.WriteJSON(GetMessage(Error, "Invalid payload, must be between 1 and 3"))
 				continue
 			}
 
 			if isUserInMM(userState) {
 				SendJSON(conn, Error, "User already part of Queue")
 				continue
+			}
+
+			for i := range payload {
+				payload[i].Timestamp = time.Now().Unix()
 			}
 
 			memberData, err = wires.Instance.TicketService.SubmitTicket(model.SubmitTicketRequest{

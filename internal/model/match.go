@@ -17,8 +17,8 @@ type MatchPlayer struct {
 	TxnHash           string  `json:"txnHash"`
 	Paid              bool    `json:"paid"`
 	ApiKey            string
-	WalletAddress     string             `json:"walletAddress"`
-	LichessCustomData *LichessCustomData `json:"lichessCustomData"`
+	WalletAddress     string              `json:"walletAddress"`
+	LichessCustomData []LichessCustomData `json:"lichessCustomData"`
 }
 
 func (mp *MatchPlayer) Marshal() []byte {

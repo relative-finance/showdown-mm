@@ -5,10 +5,10 @@ import (
 )
 
 type SubmitTicketRequest struct {
-	Id                string             `json:"steamId"`
-	Elo               float64            `json:"elo"`
-	WalletAddress     string             `json:"walletAddress"`
-	LichessCustomData *LichessCustomData `json:"lichessCustomData"`
+	Id                string              `json:"steamId"`
+	Elo               float64             `json:"elo"`
+	WalletAddress     string              `json:"walletAddress"`
+	LichessCustomData []LichessCustomData `json:"lichessCustomData"`
 }
 
 type Ticket struct {
@@ -17,9 +17,9 @@ type Ticket struct {
 }
 
 type MemberData struct {
-	Id                string             `json:"id"`
-	WalletAddress     string             `json:"walletAddress"`
-	LichessCustomData *LichessCustomData `json:"lichessCustomData"`
+	Id                string              `json:"id"`
+	WalletAddress     string              `json:"walletAddress"`
+	LichessCustomData []LichessCustomData `json:"lichessCustomData"`
 }
 
 type Collateral string
@@ -33,6 +33,7 @@ type LichessCustomData struct {
 	Time       int        `json:"time"`
 	Increment  int        `json:"increment"`
 	Collateral Collateral `json:"collateral"`
+	Timestamp  int64      `json:"timestamp"`
 }
 
 func (md *MemberData) MarshalBinary() ([]byte, error) {

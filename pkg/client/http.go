@@ -41,6 +41,19 @@ func ScheduleMatch(url string, requestBody interface{}) (*io.ReadCloser, error) 
 	return &resp.Body, nil
 }
 
+// Finds the time, increment & collateral same for tickets
+func FindTimeIncrAndColl(ticket1, ticket2 model.Ticket) (int, int, model.Collateral) {
+	for _, data1 := range ticket1.Member.LichessCustomData {
+		for _, data2 := range ticket2.Member.LichessCustomData {
+			if data1.Time == data2.Time && data1.Increment == data2.Increment && data1.Collateral == data2.Collateral {
+				return data1.Time, data1.Increment, data1.Collateral
+			}
+		}
+	}
+
+	return 0, 0, ""
+}
+
 func ScheduleDota2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 	log.Println("Scheduling Dota 2 match")
 
@@ -179,14 +192,19 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 	player2 := tickets2[0].Member.Id // steamId for player2
 
 	url := os.Getenv("LICHESSAPI") + "/v1/match"
+	limit, incr, _ := FindTimeIncrAndColl(tickets1[0], tickets2[0])
+	if limit == 0 && incr == 0 {
+		log.Println("Error finding time and increment for players")
+		return nil, errors.New("error finding time and increment for players")
+	}
 
 	requestBody := CreateLichessMatchRequest{
 		Player1: player1,
 		Player2: player2,
 		Variant: Standard,
 		Clock: Clock{
-			Increment: tickets1[0].Member.LichessCustomData.Increment,
-			Limit:     tickets1[0].Member.LichessCustomData.Time * 60,
+			Increment: incr,
+			Limit:     limit * 60,
 		},
 		Rated:         false,
 		Rules:         []Rules{},

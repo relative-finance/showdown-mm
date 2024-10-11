@@ -61,16 +61,16 @@ func testTicket(c *gin.Context) {
 		ticket := model.SubmitTicketRequest{
 			WalletAddress:     idStr,
 			Id:                idStr,
-			LichessCustomData: player.LichessCustomData,
+			LichessCustomData: []model.LichessCustomData{*player.LichessCustomData},
 			Elo:               player.Elo,
 		}
 
 		if player.LichessCustomData == nil && (queue == "lcqueue" || queue == "lcqueue_test") {
-			ticket.LichessCustomData = &model.LichessCustomData{
+			ticket.LichessCustomData = []model.LichessCustomData{{
 				Time:       5,
 				Increment:  0,
 				Collateral: model.SP,
-			}
+			}}
 		}
 
 		if _, err := wires.Instance.TicketService.SubmitTicket(ticket, queue); err != nil {
