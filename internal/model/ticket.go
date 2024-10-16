@@ -27,6 +27,7 @@ type Collateral string
 const (
 	SP   Collateral = "SP"
 	SUSD Collateral = "SUSD"
+	USDT Collateral = "USDT"
 )
 
 type LichessCustomData struct {
