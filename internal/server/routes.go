@@ -9,4 +9,5 @@ import (
 
 func RegisterVersion(router *gin.Engine, ctx context.Context) {
 	handlers.RegisterTicket(router, ctx)
+	handlers.RegisterHealth(router, ctx)
 }
