@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mmf/config"
 	"net/http"
-	"os"
 )
 
 type Glicko struct {
@@ -53,7 +53,7 @@ func GetGlicko(apiKey, perf string) (int, error) {
 	}
 
 	// url := fmt.Sprintf("https://lichess.org/api/user/%s/perf/%s", username, perf)
-	url := os.Getenv("LICHESS_BASE_URL") + "/api/account"
+	url := config.GlobalConfig.LichessApi.URL + "/api/account"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return 0, fmt.Errorf("error creating request: %v", err)
@@ -99,7 +99,7 @@ func GetLichessUsername(apiKey string) (string, error) {
 	}
 	log.Print(apiKey)
 	// url := fmt.Sprintf("https://lichess.org/api/user/%s/perf/%s", username, perf)
-	url := os.Getenv("LICHESS_BASE_URL") + "/api/account"
+	url := config.GlobalConfig.LichessApi.URL + "/api/account"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("error creating request: %v", err)
