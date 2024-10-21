@@ -8,7 +8,6 @@ import (
 	"log"
 	"mmf/config"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -108,10 +107,7 @@ func checkTransactionOnChain(userConfirmation *UserPayment, userId string) bool 
 }
 
 func idToApiKey(userId string) (*ShowdownTokenResponse, error) {
-	showdownApi := os.Getenv("SHOWDOWN_API")
-	showdownKey := os.Getenv("SHOWDOWN_API_KEY")
-
-	url := fmt.Sprintf("%s/get_lichess_token?showdownUserID=%s", showdownApi, userId)
+	url := fmt.Sprintf("%s/get_lichess_token?showdownUserID=%s", config.GlobalConfig.ShowdownUserService.URL, userId)
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -120,7 +116,7 @@ func idToApiKey(userId string) (*ShowdownTokenResponse, error) {
 		return nil, err
 	}
 
-	req.Header.Set("X-Api-Key", showdownKey)
+	req.Header.Set("X-Api-Key", config.GlobalConfig.ShowdownUserService.ApiKey)
 
 	resp, err := client.Do(req)
 
@@ -152,9 +148,7 @@ func idToApiKey(userId string) (*ShowdownTokenResponse, error) {
 }
 
 func idToWallet(userId string) (*WalletAddressResponse, error) {
-	showdownRelay := os.Getenv("SHOWDOWN_RELAY")
-
-	url := fmt.Sprintf("%s/user/info_batch?showdownUserID=%s", showdownRelay, userId)
+	url := fmt.Sprintf("%s/user/info_batch?showdownUserID=%s", config.GlobalConfig.ShowdownApi.URL, userId)
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", url, nil)

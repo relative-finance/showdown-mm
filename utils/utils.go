@@ -15,7 +15,7 @@ import (
 	"mmf/internal/wires"
 	"mmf/pkg/client"
 	"net/http"
-	"os"
+	"strings"
 	"time"
 )
 
@@ -86,6 +86,8 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 		ws.SendJSONToUser(ticket.Member.Id, ws.Info, paymentResponse)
 	}
 
+	noOfChecks := 1
+
 	for range ticker.C {
 		if time.Now().After(end) {
 			ticker.Stop()
@@ -94,20 +96,39 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 			return
 		}
 
-		allPaid := true
+		unPaidPlayersList := []*model.MatchPlayer{}
 		if queue == constants.LCQueue {
 			for _, redisPlayer := range redis.RedisClient.HGetAll(matchId).Val() {
 				matchPlayer := model.UnmarshalMatchPlayer([]byte(redisPlayer))
 
 				if !matchPlayer.Paid {
-					allPaid = false
-					break
+					unPaidPlayersList = append(unPaidPlayersList, matchPlayer)
 				}
+			}
+
+			// make subgraph calls once every 6 seconds
+			if len(unPaidPlayersList) != 0 && noOfChecks%3 == 0 {
+				// check user's payment status from subgraph as well
+				playersPaymentStatus := client.GetQPUsersPaymentStatusFromSubgraph(matchId)
+				for _, playerInfo := range unPaidPlayersList {
+					playerWalletAddress := strings.ToLower(playerInfo.WalletAddress)
+					if playersPaymentStatus[playerWalletAddress] {
+						playerInfo.Paid = true
+						redis.RedisClient.HSet(matchId, playerInfo.Id, playerInfo.Marshal())
+
+						userPlayerInfo := ws.GetUserState(playerInfo.Id)
+						userPlayerInfo.State = model.Paid
+						ws.UpdateUserState(playerInfo.Id, userPlayerInfo)
+					}
+				}
+
 			}
 		}
 
-		if allPaid {
+		if len(unPaidPlayersList) == 0 {
 			break
+		} else {
+			noOfChecks += 1
 		}
 	}
 
@@ -192,7 +213,8 @@ func MatchFailedReturnPlayersToMM(queue constants.QueueType, matchId string, isP
 			Elo:               matchPlayer.Score,
 			WalletAddress:     matchPlayer.WalletAddress,
 			LichessCustomData: matchPlayer.LichessCustomData,
-		}, constants.GetIndexNameQueue(queue))
+		}, queue.String())
+		log.Println("Added player:", matchPlayer.Id, "back to", queue)
 
 		if err != nil {
 			log.Println("Error adding player to queue: ", err)
@@ -275,9 +297,7 @@ func createLichessMatchShowdown(tickets1 []model.Ticket, tickets2 []model.Ticket
 		Rated:         false,
 	}
 
-	showdownApi := os.Getenv("SHOWDOWN_RELAY")
-
-	url := fmt.Sprintf("%s/chess/create_quickplay_match", showdownApi)
+	url := fmt.Sprintf("%s/chess/create_quickplay_match", config.GlobalConfig.ShowdownApi.URL)
 	log.Println(url)
 	client := &http.Client{}
 

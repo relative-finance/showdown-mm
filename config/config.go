@@ -8,10 +8,19 @@ import (
 )
 
 type Config struct {
-	Redis     RedisConfig
-	Server    ServerConfig
-	MMRConfig MMRConfig
-	EthRpc    EthRpcConfig
+	Redis               RedisConfig
+	Server              ServerConfig
+	MMRConfig           MMRConfig
+	EthRpc              ExternalApiConfig
+	ShowdownUserService ExternalApiConfig
+	LichessApi          ExternalApiConfig
+	CS2Api              ExternalApiConfig
+	D2Api               ExternalApiConfig
+	ShowdownStatsRelay  ExternalApiConfig
+	LichessBaseUrl      ExternalApiConfig
+	ShowdownApi         ExternalApiConfig
+	MatchEndWebhook     ExternalApiConfig
+	Subgraph            ExternalApiConfig
 }
 
 type ServerConfig struct {
@@ -35,8 +44,9 @@ type RedisConfig struct {
 	DB       int
 }
 
-type EthRpcConfig struct {
-	URL string
+type ExternalApiConfig struct {
+	URL    string
+	ApiKey string
 }
 
 var GlobalConfig *Config
@@ -96,8 +106,36 @@ func NewConfig() *Config {
 			TimeToAccept:      timeToAccept,
 			Range:             rangeInt,
 		},
-		EthRpc: EthRpcConfig{
+		EthRpc: ExternalApiConfig{
 			URL: readEnvVar("ETH_RPC_URL"),
+		},
+		ShowdownUserService: ExternalApiConfig{
+			URL:    readEnvVar("SHOWDOWN_API"),
+			ApiKey: readEnvVar("SHOWDOWN_API_KEY"),
+		},
+		LichessApi: ExternalApiConfig{
+			URL: readEnvVar("LICHESSAPI"),
+		},
+		CS2Api: ExternalApiConfig{
+			URL: readEnvVar("CS2API"),
+		},
+		D2Api: ExternalApiConfig{
+			URL: readEnvVar("D2API"),
+		},
+		ShowdownStatsRelay: ExternalApiConfig{
+			URL: readEnvVar("RELAY_ADDRESS"),
+		},
+		LichessBaseUrl: ExternalApiConfig{
+			URL: readEnvVar("LICHESS_BASE_URL"),
+		},
+		ShowdownApi: ExternalApiConfig{
+			URL: readEnvVar("SHOWDOWN_RELAY"),
+		},
+		MatchEndWebhook: ExternalApiConfig{
+			URL: readEnvVar("WEBHOOK_ENDPOINT"),
+		},
+		Subgraph: ExternalApiConfig{
+			URL: readEnvVar("SUBGRAPH_URL"),
 		},
 	}
 

@@ -3,13 +3,13 @@ package external
 import (
 	"encoding/json"
 	"log"
+	"mmf/config"
 	"mmf/internal/model"
 	"net/http"
-	"os"
 )
 
 func GetDataFromRelay(steamId string) *model.EloData {
-	relayAddress := os.Getenv("RELAY_ADDRESS")
+	relayAddress := config.GlobalConfig.ShowdownStatsRelay.URL
 	resp, err := http.Get(relayAddress + "/statistics/elo/" + steamId)
 	if err != nil {
 		log.Println("Error getting elo from relay")

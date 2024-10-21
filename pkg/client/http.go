@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mmf/config"
 	"mmf/internal/model"
 	ws "mmf/internal/server/websockets"
 
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 )
@@ -79,7 +79,7 @@ func ScheduleDota2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 		teamB = append(teamB, player)
 	}
 
-	url := os.Getenv("D2API") + "/v1/match"
+	url := config.GlobalConfig.D2Api.URL + "/v1/match"
 	requestBody := MatchRequestBodyD2{
 		TeamA: teamA,
 		TeamB: teamB,
@@ -101,7 +101,7 @@ func ScheduleDota2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 func ScheduleCS2Match(tickets1 []model.Ticket, tickets2 []model.Ticket) {
 	log.Println("Scheduling CS2 match")
 
-	url := os.Getenv("CS2API") + "/v1/start-match"
+	url := config.GlobalConfig.CS2Api.URL + "/v1/start-match"
 	requestBody := MatchRequestBodyCS2{
 		Team1: Team{
 			Name: "team1",
@@ -191,7 +191,7 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 	player1 := tickets1[0].Member.Id // steamId for player1
 	player2 := tickets2[0].Member.Id // steamId for player2
 
-	url := os.Getenv("LICHESSAPI") + "/v1/match"
+	url := config.GlobalConfig.LichessApi.URL + "/v1/match"
 	limit, incr, _ := FindTimeIncrAndColl(tickets1[0], tickets2[0])
 	if limit == 0 && incr == 0 {
 		log.Println("Error finding time and increment for players")
@@ -210,7 +210,7 @@ func ScheduleLichessMatch(tickets1 []model.Ticket, tickets2 []model.Ticket, matc
 		Rules:         []Rules{},
 		PairAt:        int(time.Now().Add(30 * time.Second).UnixMilli()),
 		StartClocksAt: int(time.Now().Add(1 * time.Minute).UnixMilli()),
-		Webhook:       fmt.Sprint(os.Getenv("WEBHOOK_ENDPOINT"), "/", matchId),
+		Webhook:       fmt.Sprint(config.GlobalConfig.MatchEndWebhook.URL, "/", matchId),
 		Instant:       true,
 	}
 
@@ -252,9 +252,7 @@ func notifyShowdownAPI(matchId, lichessId string) {
 		LichessID: lichessId,
 	}
 
-	showdownApi := os.Getenv("SHOWDOWN_RELAY")
-
-	url := fmt.Sprintf("%s/chess/start_chess_match", showdownApi)
+	url := fmt.Sprintf("%s/chess/start_chess_match", config.GlobalConfig.ShowdownApi.URL)
 	log.Println(url)
 	client := &http.Client{}
 
@@ -284,4 +282,91 @@ func notifyShowdownAPI(matchId, lichessId string) {
 	}
 
 	log.Println("Showdown API notified")
+}
+
+type SubgraphRequestData struct {
+	Query     string            `json:"query"`
+	Variables map[string]string `json:"variables"`
+}
+
+type SubgraphResponse struct {
+	Data struct {
+		ChessQuickplayMatch SubgraphQuickPlayMatchInfo `json:"chessQuickplayMatch"`
+	} `json:"data"`
+}
+
+type SubgraphQuickPlayMatchInfo struct {
+	Positions []QuickplayPositionInfo `json:"positions"`
+}
+
+type QuickplayPositionInfo struct {
+	Id                string `json:"id"`
+	Status            string `json:"status"`
+	UserWalletAddress string `json:"userWalletAddress"`
+}
+
+func getQPMatchInfoFromSubgraph(matchId string) (*SubgraphResponse, error) {
+	client := &http.Client{}
+	variables := map[string]string{"id": matchId}
+
+	subgraphRequestData := SubgraphRequestData{
+		Query: `query QuickplayMatchInfo($id: String!) {
+			chessQuickplayMatch(id: $id) {
+				positions {
+				size
+				id
+				status
+				userWalletAddress
+				}
+			}
+			}`,
+		Variables: variables,
+	}
+
+	jsonData, err := json.Marshal(subgraphRequestData)
+	if err != nil {
+		return nil, fmt.Errorf("error marshalling HTTP request: %s", err)
+	}
+
+	req, err := http.NewRequest("POST", config.GlobalConfig.Subgraph.URL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("error creating HTTP request: %s", err)
+	}
+	req.Header.Add("content-type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading body: %s", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d body: %s", resp.StatusCode, body)
+	}
+
+	var subgraphResponse SubgraphResponse
+
+	if err = json.Unmarshal(body, &subgraphResponse); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %s", err)
+	}
+
+	return &subgraphResponse, nil
+}
+
+func GetQPUsersPaymentStatusFromSubgraph(matchId string) map[string]bool {
+	usersPaymentInfo := make(map[string]bool, 2)
+	qpMatchInfo, err := getQPMatchInfoFromSubgraph(matchId)
+	if err != nil {
+		log.Println("Error with fetching Quickplay info from subgraph:", err)
+		return usersPaymentInfo
+	}
+	for _, position := range qpMatchInfo.Data.ChessQuickplayMatch.Positions {
+		usersPaymentInfo[position.UserWalletAddress] = position.Status == "JOINED"
+	}
+
+	return usersPaymentInfo
 }

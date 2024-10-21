@@ -34,12 +34,16 @@ type ShowdownApiResponse struct {
 var userConnections = make(map[string]*websocket.Conn)
 var userConnectionsMutex sync.Mutex
 
-func getUserState(id string) *model.UserGlobalState {
+func GetUserState(id string) *model.UserGlobalState {
 	state := redis.RedisClient.HGet("user_state", id)
 	if state.Err() == nil && state.Val() != "" {
 		return model.UnmarshalUserGlobalState([]byte(state.Val()))
 	}
 	return &model.UserGlobalState{State: model.NoState}
+}
+
+func UpdateUserState(id string, userState *model.UserGlobalState) {
+	redis.RedisClient.HSet("user_state", id, userState.Marshal())
 }
 
 func isUserInMM(userState *model.UserGlobalState) bool {
@@ -78,7 +82,7 @@ func StartLichessWebSocket(game string, id string, c *gin.Context) {
 		return nil
 	})
 
-	userState := getUserState(id)
+	userState := GetUserState(id)
 	isUserInMmVar := isUserInMM(userState)
 	if isUserInMmVar {
 		// TODO: Include both the teams info
@@ -163,10 +167,11 @@ func StartLichessWebSocket(game string, id string, c *gin.Context) {
 			continue
 		}
 
-		userState := getUserState(id)
+		userState := GetUserState(id)
 
 		switch userResponse.Type {
 		case JoinQueue:
+			// TODO: Add check to prevent user from joining the same queue multiple times
 			var payload []model.LichessCustomData
 			if err := mapstructure.Decode(userResponse.Payload, &payload); err != nil || payload == nil {
 				conn.WriteJSON(GetMessage(Error, "Error parsing payload"))
