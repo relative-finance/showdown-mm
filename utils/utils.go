@@ -106,8 +106,8 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 				}
 			}
 
-			// make subgraph calls once every 4 seconds
-			if len(unPaidPlayersList) != 0 && noOfChecks%4 == 0 {
+			// make subgraph calls once every 6 seconds
+			if len(unPaidPlayersList) != 0 && noOfChecks%3 == 0 {
 				// check user's payment status from subgraph as well
 				playersPaymentStatus := client.GetQPUsersPaymentStatusFromSubgraph(matchId)
 				for _, playerInfo := range unPaidPlayersList {
