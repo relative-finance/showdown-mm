@@ -171,6 +171,7 @@ func StartLichessWebSocket(game string, id string, c *gin.Context) {
 
 		switch userResponse.Type {
 		case JoinQueue:
+			// TODO: Add check to prevent user from joining the same queue multiple times
 			var payload []model.LichessCustomData
 			if err := mapstructure.Decode(userResponse.Payload, &payload); err != nil || payload == nil {
 				conn.WriteJSON(GetMessage(Error, "Error parsing payload"))
