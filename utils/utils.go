@@ -14,6 +14,7 @@ import (
 	ws "mmf/internal/server/websockets"
 	"mmf/internal/wires"
 	"mmf/pkg/client"
+	"mmf/pkg/external"
 	"net/http"
 	"strings"
 	"time"
@@ -159,6 +160,39 @@ func WaitingForMatchThread(matchId string, queue constants.QueueType, tickets1 [
 	cmd := redis.RedisClient.HDel("user_state", tickets1[0].Member.Id, tickets2[0].Member.Id)
 	if cmd.Err() != nil {
 		log.Println("Error deleting user state from redis: ", cmd.Err())
+	}
+
+	if queue == constants.LCQueue {
+		go func() {
+			type Metadata struct {
+				Opponent string `json:"opponent"`
+				Amount   string `json:"amount"`
+				Currency string `json:"currency"`
+			}
+
+			md := Metadata{
+				Opponent: tickets2[0].Member.Id,
+				Amount:   "0.1",
+				Currency: string(tickets2[0].Member.LichessCustomData[0].Collateral),
+			}
+
+			notification := external.Notification{
+				Content:  "Quickplay match created with <opponent> for <amount> <currency>\n Best of luck!",
+				Metadata: md,
+				UserIds:  []string{tickets1[0].Member.Id},
+				Type:     "chess_quickplay",
+				Subtype:  "MATCH_CREATED",
+				RefId:    matchId,
+			}
+
+			external.SendNotification(notification)
+
+			md.Opponent = tickets1[0].Member.Id
+			notification.UserIds = []string{tickets2[0].Member.Id}
+			notification.Metadata = md
+
+			external.SendNotification(notification)
+		}()
 	}
 }
 

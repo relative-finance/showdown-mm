@@ -21,6 +21,7 @@ type Config struct {
 	ShowdownApi         ExternalApiConfig
 	MatchEndWebhook     ExternalApiConfig
 	Subgraph            ExternalApiConfig
+	Notifications       ExternalApiConfig
 }
 
 type ServerConfig struct {
@@ -136,6 +137,9 @@ func NewConfig() *Config {
 		},
 		Subgraph: ExternalApiConfig{
 			URL: readEnvVar("SUBGRAPH_URL"),
+		},
+		Notifications: ExternalApiConfig{
+			URL: readEnvVar("NOTIFICATIONS_URL"),
 		},
 	}
 
